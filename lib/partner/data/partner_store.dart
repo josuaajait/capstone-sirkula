@@ -530,7 +530,8 @@ class PartnerStore extends ChangeNotifier {
         WasteType.plastik,
         6,
         DepositMethod.pickup,
-        at(0, 8, 12),
+        // Relatif ke jam sekarang, agar tidak pernah tercatat di masa depan.
+        now.subtract(const Duration(hours: 2, minutes: 30)),
         date: at(1, 0),
         slot: pickupSlots[0],
         note: 'Botol sudah dibilas dan dipipihkan.',
@@ -541,7 +542,7 @@ class PartnerStore extends ChangeNotifier {
         WasteType.kaleng,
         3.5,
         DepositMethod.dropOff,
-        at(0, 9, 40),
+        now.subtract(const Duration(hours: 1, minutes: 5)),
       ),
       today,
       // Riwayat bulan ini, kira-kira separuh target.
