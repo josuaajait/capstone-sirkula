@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sirkula-web",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["tool/serve_web.py"],
+      "port": 8765
+    }
+  ]
+}
