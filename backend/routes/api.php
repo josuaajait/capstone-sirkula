@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CommonController;
 use App\Http\Controllers\Api\Customer;
+use App\Http\Controllers\Api\DeviceController;
+use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\Partner;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +34,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('rewards', [CommonController::class, 'rewards']);
     Route::get('notifications', [CommonController::class, 'notifications']);
     Route::post('notifications/read-all', [CommonController::class, 'readNotifications']);
+    Route::post('devices', [DeviceController::class, 'store']);
+    Route::delete('devices', [DeviceController::class, 'destroy']);
 
     Route::prefix('customer')->middleware('role:customer')->group(function () {
         Route::get('summary', [Customer\CustomerController::class, 'summary']);
@@ -60,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('deposits/{deposit}/depart', [Partner\DepositController::class, 'depart']);
         Route::post('deposits/{deposit}/weigh', [Partner\DepositController::class, 'weigh']);
         Route::post('deposits/{deposit}/correct', [Partner\DepositController::class, 'correct']);
+        Route::post('deposits/{deposit}/photo', [Partner\DepositController::class, 'uploadPhoto']);
     });
 
     Route::prefix('admin')->middleware('role:admin')->group(function () {
@@ -93,3 +98,8 @@ Route::middleware('signed:relative')->prefix('reports')->group(function () {
     Route::get('download.csv', [Admin\ReportController::class, 'exportCsv'])->name('reports.csv');
     Route::get('print', [Admin\ReportController::class, 'printable'])->name('reports.print');
 });
+
+// Foto timbangan. Nama file 40 karakter acak sehingga tautannya tidak bisa
+// ditebak; gambar dibuka langsung oleh aplikasi tanpa token.
+Route::get('media/weigh-photos/{file}', [MediaController::class, 'weighPhoto'])
+    ->where('file', '[A-Za-z0-9]{40}\.(jpg|png|webp)');

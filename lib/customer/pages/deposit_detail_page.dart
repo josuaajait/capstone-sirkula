@@ -120,7 +120,6 @@ class _WeighProof extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = deposit;
-    final url = d.weighPhotoUrl;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -130,24 +129,7 @@ class _WeighProof extends StatelessWidget {
             subtitle: 'Dicatat mitra saat sampah ditimbang',
           ),
           const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: url != null
-                  ? Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      semanticLabel: 'Foto timbangan ${d.id}',
-                      errorBuilder: (_, _, _) => const _PhotoPlaceholder(
-                        'Foto timbangan gagal dimuat.',
-                      ),
-                    )
-                  : const _PhotoPlaceholder(
-                      'Foto timbangan belum diunggah mitra.',
-                    ),
-            ),
-          ),
+          WeighPhotoView(d),
           const SizedBox(height: 10),
           InfoRow('Berat timbang', formatKg(d.weighedKg!)),
           if (d.weighedAt != null)
@@ -163,36 +145,6 @@ class _WeighProof extends StatelessWidget {
               '${formatKg(d.originalWeighedKg!)} · ${d.correctionReason ?? '-'}',
               valueColor: AppColors.amberDeep,
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhotoPlaceholder extends StatelessWidget {
-  const _PhotoPlaceholder(this.message);
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.canvas,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.photo_camera_outlined,
-            size: 28,
-            color: AppColors.muted,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: AppColors.muted),
-          ),
         ],
       ),
     );

@@ -83,7 +83,8 @@ Menu bawah: **Beranda, Setor, Jemput, Hadiah, Riwayat**, ditambah profil dan not
 | Memilih dijemput (alamat, tanggal, slot jam) atau antar sendiri | FR-C4 | ✅ Selesai |
 | Meninjau ringkasan sebelum mengirim permintaan | FR-C5 | ✅ Selesai |
 | Halaman Jemput untuk memantau jadwal dan kendaraan mitra | FR-C6 | ✅ Selesai |
-| Riwayat dan detail setoran, termasuk bukti timbang dari mitra | FR-C6 | ✅ Selesai, foto timbang masih contoh |
+| Riwayat dan detail setoran, termasuk bukti timbang dan foto timbangan dari mitra | FR-C6 | ✅ Selesai |
+| Notifikasi di bilah status HP saat ada kabar baru (setoran diterima, poin masuk, hadiah dikirim) | Aturan bisnis | ✅ Selesai. Muncul selama aplikasi terbuka atau masih berjalan di latar belakang; push saat aplikasi tertutup butuh Firebase (bagian 8.1) |
 | Katalog hadiah: Voucher, E-Wallet, Sembako, dan Bibit | FR-C7 | ✅ Selesai |
 | Detail hadiah, harga poin, dan sisa saldo setelah ditukar | FR-C8 | ✅ Selesai |
 | Konfirmasi penukaran dan alamat pengiriman; saldo tidak bisa minus | FR-C9 | ✅ Selesai |
@@ -107,6 +108,7 @@ Menu bawah: **Beranda, Permintaan, Jadwal, Timbang, Riwayat**, ditambah profil m
 | Batas berat 200 kg per setoran untuk mencegah salah catat | Risiko PRD | ✅ Selesai |
 | Riwayat setoran yang diterima | FR-M7 | ✅ Selesai |
 | Koreksi berat yang salah catat, dengan alasan, sampai 7 hari setelah timbang. Poin dihitung ulang dengan tarif saat ditimbang | FR-M8 | ✅ Selesai |
+| Foto timbangan dari kamera atau galeri, saat menimbang atau sesudahnya dari detail setoran | FR-C6 | ✅ Selesai |
 
 ### 2.3b Peran Admin perusahaan
 
@@ -139,9 +141,9 @@ Ada tiga kelompok tes otomatis. Hasil terakhir (11 November 2026): **semuanya lu
 
 | Kelompok | Lokasi | Jumlah | Yang diperiksa |
 | --- | --- | --- | --- |
-| Aplikasi HP (mode demo) | `test/` | 30 | Daftar dan masuk, setor, timbang, koreksi berat, poin, penukaran, tampilan 360 px |
-| API Laravel | `backend/tests/` | 28 | Akun, siklus setoran, aturan poin, koreksi berat, admin, laporan dan tautan unduhnya |
-| Ujung ke ujung | `test/e2e_api_test.dart` | 2 | Aplikasi HP memakai server sungguhan: customer setor, mitra timbang dan koreksi, poin masuk, tukar hadiah, admin kirim hadiah dan unduh laporan; daftar dan lupa kata sandi |
+| Aplikasi HP | `test/` | 37 | Daftar dan masuk, setor, timbang, koreksi berat, foto timbangan, notifikasi, poin, penukaran, tampilan 360 px |
+| API Laravel | `backend/tests/` | 33 | Akun, siklus setoran, aturan poin, koreksi berat, foto timbangan, token perangkat dan pengiriman FCM, admin, laporan dan tautan unduhnya |
+| Ujung ke ujung | `test/e2e_api_test.dart` | 2 | Aplikasi HP memakai server sungguhan: customer setor, mitra timbang, koreksi, dan unggah foto, poin masuk, tukar hadiah, admin kirim hadiah dan unduh laporan; daftar dan lupa kata sandi |
 
 Pemeriksaan kode `flutter analyze` tidak menemukan masalah. Tes ujung ke ujung hanya berjalan jika alamat server diberikan:
 
@@ -158,8 +160,7 @@ Sebelumnya ada satu tes yang gagal. Penyebabnya, dua permintaan di data contoh m
 | Pekerjaan | Keterangan |
 | --- | --- |
 | Kirim kode verifikasi lewat email atau SMS | Selama uji coba, kode ditampilkan di layar (server dalam mode `APP_DEBUG=true`) |
-| Unggah foto timbangan | Kolom di basis data sudah disiapkan |
-| Notifikasi push (Firebase) | Notifikasi sudah ada di dalam aplikasi, tetapi belum muncul saat aplikasi tertutup |
+| Mengaktifkan push Firebase | Kode sudah siap. Tinggal membuat proyek Firebase dan memasang dua file kunci (bagian 8.1) |
 | Angka faktor emisi tCO2e yang resmi | Faktor per jenis sampah masih perkiraan sementara |
 | Server online (hosting) | Saat ini server berjalan di laptop, jadi HP harus satu jaringan Wi-Fi |
 | Rilis APK di GitHub | Belum ada versi yang diunggah |
@@ -187,6 +188,7 @@ Urutan pengerjaan sejauh ini:
 | 13. Sambung ke API | 11 Nov 2026 | Aplikasi HP memakai API: masuk, daftar, lupa sandi, setor, timbang, poin, hadiah, notifikasi. Sesi tersimpan, layar splash, dan alamat server bisa diubah. Mode demo tetap ada | `lib/app/api/`, branch `fitur/sambung-api` |
 | 14. Peran Admin | 11 Nov 2026 | Beranda admin, pantau setoran, proses penukaran, kelola jenis sampah, hadiah, bank sampah, petugas, customer, dan laporan Excel/PDF | Folder `lib/admin/` |
 | 15. Koreksi berat | 11 Nov 2026 | Mitra bisa mengoreksi berat yang salah catat; poin customer ikut disesuaikan | FR-M8 selesai, 30 + 28 tes lulus, uji ujung ke ujung lulus |
+| 16. Foto dan notifikasi | 12 Nov 2026 | Mitra mengunggah foto timbangan; customer melihatnya. Notifikasi baru tampil di bilah status HP. Kode push Firebase disiapkan. APK kini bisa menghubungi server `http://` di laptop | 37 + 33 tes lulus, uji ujung ke ujung lulus |
 
 ### Rencana berikutnya
 
@@ -489,6 +491,23 @@ Jika database sudah pernah dibuat sebelumnya, jalankan `php artisan migrate` set
 
 Akun contoh sama dengan aplikasi HP (kata sandi `sirkula123`), ditambah akun admin `admin@sirkula.id`.
 
+Foto timbangan tersimpan di `backend/storage/app/public/weigh-photos/` dan dibuka aplikasi lewat alamat `/api/media/...`, jadi tidak perlu menjalankan `php artisan storage:link`.
+
+### 8.1 Mengaktifkan notifikasi push (Firebase, opsional)
+
+Tanpa langkah ini, notifikasi tetap muncul di bilah status HP selama aplikasi terbuka atau masih berjalan di latar belakang. Firebase dibutuhkan agar notifikasi juga muncul saat aplikasi **benar-benar ditutup**.
+
+1. Buka <https://console.firebase.google.com>, buat proyek baru, misalnya `sirkula`.
+2. Di proyek itu, klik **Add app → Android**. Isi *package name* `com.example.capstone`, lalu unduh `google-services.json`. Simpan di `android/app/google-services.json`.
+3. Pasang plugin Google Services di Android:
+   - Di `android/settings.gradle.kts`, bagian `plugins { ... }`, tambahkan baris `id("com.google.gms.google-services") version "4.4.2" apply false`.
+   - Di `android/app/build.gradle.kts`, bagian `plugins { ... }`, tambahkan baris `id("com.google.gms.google-services")`.
+4. Di Firebase, buka **Project settings → Service accounts → Generate new private key**. Simpan file JSON itu sebagai `backend/storage/app/firebase.json`. File ini rahasia dan otomatis tidak ikut ke GitHub.
+5. Di `backend/.env`, isi `FCM_CREDENTIALS=storage/app/firebase.json`, lalu jalankan ulang `php artisan serve`.
+6. Jalankan atau buat APK dengan `--dart-define=FCM=true`, misalnya `flutter build apk --release --dart-define=FCM=true`.
+
+Setelah masuk, HP mendaftarkan dirinya ke server. Saat FCM aktif, notifikasi lokal dimatikan otomatis agar tidak muncul dua kali.
+
 > **SQLyog versi lama** menampilkan "Error No. 1251" saat terhubung ke MySQL 8.4. Tambahkan `mysql_native_password=ON` di bagian `[mysqld]` file `my.ini` MySQL Laragon, restart MySQL, lalu jalankan `ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';`.
 
 ---
@@ -509,6 +528,8 @@ Akun contoh sama dengan aplikasi HP (kata sandi `sirkula123`), ditambah akun adm
 | Kata sandi ditolak | Salah ketik, atau data server di-reset dengan `migrate:fresh` | Gunakan akun contoh di bagian 6.1, atau daftar ulang |
 | "Tidak bisa terhubung ke server" saat masuk | Server Laravel belum berjalan, atau alamat server salah | Jalankan server (bagian 8). Di HP, ketuk **Server: …** di halaman Masuk dan isi IP laptop. HP dan laptop harus satu Wi-Fi, dan server dijalankan dengan `--host=0.0.0.0` |
 | Setoran atau poin yang tadi dibuat hilang | Aplikasi berjalan dalam mode demo (`DEMO=true`) | Jalankan tanpa `--dart-define=DEMO=true` agar data tersimpan di server |
+| Foto timbangan tidak muncul di HP | Alamat foto memakai alamat server yang dipakai HP. Jika HP memakai `localhost`, foto tidak terjangkau | Ganti alamat server di halaman Masuk ke IP laptop |
+| Notifikasi tidak muncul di bilah status | Izin notifikasi ditolak, atau aplikasi sudah ditutup | Izinkan notifikasi di **Pengaturan → Aplikasi → Sirkula**. Untuk notifikasi saat aplikasi tertutup, aktifkan Firebase (bagian 8.1) |
 | Tombol PDF laporan tidak membuka apa-apa | Peramban memblokir jendela baru, atau tautan sudah lewat 10 menit | Izinkan pop-up, lalu tekan tombol PDF lagi |
 | `build\web belum ada` saat menjalankan `serve_web.py` | Versi web belum dibangun | Jalankan `flutter build web` terlebih dahulu |
 | Ada error aneh setelah `git pull` | Sisa hasil build lama | Jalankan `flutter clean`, lalu `flutter pub get`, dan coba lagi |

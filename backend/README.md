@@ -80,6 +80,9 @@ Data contoh (riwayat setoran, saldo, permintaan baru) hanya dibuat jika `APP_ENV
 | GET | `/waste-types` | Kelompok dan jenis sampah aktif beserta poin per kg |
 | GET | `/rewards` | Katalog hadiah aktif |
 | GET | `/notifications` | Notifikasi, terbaru dulu, plus jumlah `unread` |
+| POST | `/devices` | Daftarkan token FCM HP: `token`, `platform`. Respons `push_enabled` menunjukkan apakah server sudah punya kunci Firebase |
+| DELETE | `/devices` | Hapus token saat keluar akun: `token` |
+| GET | `/media/weigh-photos/{file}` | Foto timbangan, tanpa token (nama file 40 karakter acak) |
 | POST | `/notifications/read-all` | Tandai semua sudah dibaca |
 
 ### Customer (`/api/customer`)
@@ -108,6 +111,7 @@ Data contoh (riwayat setoran, saldo, permintaan baru) hanya dibuat jika `APP_ENV
 | POST | `/deposits/{kode}/reschedule` | Ubah `pickup_date`, `pickup_slot`, `vehicle_id` |
 | POST | `/deposits/{kode}/depart` | Berangkat menjemput |
 | POST | `/deposits/{kode}/weigh` | Catat timbangan: `waste_type_id`, `weighed_kg`, `note`. Poin dihitung server |
+| POST | `/deposits/{kode}/photo` | Unggah foto timbangan (multipart, kolom `photo`, JPG/PNG/WebP, paling besar 5 MB). Hanya setoran terverifikasi; foto lama diganti |
 | POST | `/deposits/{kode}/correct` | Koreksi berat (FR-M8): `weighed_kg`, `reason`. Hanya setoran terverifikasi, paling lama 7 hari setelah timbang. Selisih poin dikredit atau didebit; saldo tidak boleh minus |
 | POST | `/deposits/walk-in` | Customer datang langsung: `customer_id`, `waste_type_id`, `weighed_kg` |
 | GET | `/customers/find?q=` | Cari customer lewat ID (`CST-0001`) atau nomor ponsel |
@@ -147,5 +151,4 @@ Data contoh (riwayat setoran, saldo, permintaan baru) hanya dibuat jika `APP_ENV
 ## Belum dikerjakan
 
 - Pengiriman kode lupa kata sandi lewat email atau SMS.
-- Unggah foto timbangan (kolom `weigh_photo_path` sudah disiapkan).
-- Notifikasi push (Firebase); saat ini notifikasi tersimpan dan dibaca lewat `/notifications`.
+- Push Firebase aktif hanya jika `FCM_CREDENTIALS` diisi (lihat PANDUAN bagian 8.1). Tanpa itu, notifikasi tetap tersimpan dan aplikasi menampilkannya sendiri.

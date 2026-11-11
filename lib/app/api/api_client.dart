@@ -65,7 +65,22 @@ class ApiClient {
   Future<dynamic> put(String path, [Map<String, dynamic>? body]) =>
       _send('PUT', path, body: body);
 
-  Future<dynamic> delete(String path) => _send('DELETE', path);
+  Future<dynamic> delete(String path, [Map<String, dynamic>? body]) =>
+      _send('DELETE', path, body: body);
+
+  /// Unggah satu file (multipart/form-data), misalnya foto timbangan.
+  Future<dynamic> upload(
+    String path, {
+    required String field,
+    required List<int> bytes,
+    required String filename,
+  }) {
+    final request = http.MultipartRequest('POST', uri(path))
+      ..files.add(
+        http.MultipartFile.fromBytes(field, bytes, filename: filename),
+      );
+    return _dispatch(request, timeout: const Duration(seconds: 60));
+  }
 
   Uri uri(String path, [Map<String, String?>? query]) {
     final q = {
@@ -82,18 +97,28 @@ class ApiClient {
     Map<String, String?>? query,
     Map<String, dynamic>? body,
   }) async {
-    final request = http.Request(method, uri(path, query))
-      ..headers.addAll({
-        'Accept': 'application/json',
-        if (body != null) 'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      });
-    if (body != null) request.body = jsonEncode(body);
+    final request = http.Request(method, uri(path, query));
+    if (body != null) {
+      request
+        ..headers['Content-Type'] = 'application/json'
+        ..body = jsonEncode(body);
+    }
+    return _dispatch(request);
+  }
+
+  Future<dynamic> _dispatch(
+    http.BaseRequest request, {
+    Duration timeout = _timeout,
+  }) async {
+    request.headers.addAll({
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    });
 
     final http.Response response;
     try {
       response = await http.Response.fromStream(
-        await _http.send(request).timeout(_timeout),
+        await _http.send(request).timeout(timeout),
       );
     } on TimeoutException {
       throw ApiException('Server tidak merespons. Coba lagi sebentar lagi.');

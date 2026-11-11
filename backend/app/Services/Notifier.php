@@ -7,12 +7,25 @@ use App\Models\AppNotification;
 use App\Models\Partner;
 use App\Models\User;
 
-/** Mengirim notifikasi di dalam aplikasi. */
+use function Illuminate\Support\defer;
+
+/**
+ * Mengirim notifikasi di dalam aplikasi, lalu push ke HP lewat FCM jika
+ * Firebase sudah diatur. Push dikirim setelah respons API selesai agar
+ * aplikasi tidak menunggu server Google.
+ */
 class Notifier
 {
+    public function __construct(private readonly FcmSender $fcm) {}
+
     public function send(User $user, string $title, string $body): AppNotification
     {
-        return AppNotification::create(['user_id' => $user->id, 'title' => $title, 'body' => $body]);
+        $notification = AppNotification::create(['user_id' => $user->id, 'title' => $title, 'body' => $body]);
+        if ($this->fcm->enabled()) {
+            defer(fn () => $this->fcm->sendToUser($user, $title, $body, ['notification_id' => $notification->id]));
+        }
+
+        return $notification;
     }
 
     /** Kirim ke semua petugas aktif sebuah bank sampah. */

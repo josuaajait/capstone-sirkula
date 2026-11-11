@@ -491,3 +491,74 @@ Future<T?> runAction<T>(
     return null;
   }
 }
+
+/// Foto hasil timbang: foto yang baru dipilih di HP, foto dari server, atau
+/// keterangan jika belum ada.
+class WeighPhotoView extends StatelessWidget {
+  const WeighPhotoView(this.deposit, {super.key, this.emptyMessage});
+
+  final Deposit deposit;
+  final String? emptyMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = deposit;
+    final Widget child;
+    if (d.localPhoto != null) {
+      child = Image.memory(
+        d.localPhoto!,
+        fit: BoxFit.cover,
+        semanticLabel: 'Foto timbangan ${d.id}',
+      );
+    } else if (d.weighPhotoUrl != null) {
+      child = Image.network(
+        d.weighPhotoUrl!,
+        fit: BoxFit.cover,
+        semanticLabel: 'Foto timbangan ${d.id}',
+        loadingBuilder: (context, image, progress) => progress == null
+            ? image
+            : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        errorBuilder: (_, _, _) =>
+            const _PhotoNote('Foto timbangan gagal dimuat.'),
+      );
+    } else {
+      child = _PhotoNote(
+        emptyMessage ?? 'Foto timbangan belum diunggah mitra.',
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: AspectRatio(aspectRatio: 16 / 9, child: child),
+    );
+  }
+}
+
+class _PhotoNote extends StatelessWidget {
+  const _PhotoNote(this.message);
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.canvas,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.photo_camera_outlined,
+            size: 28,
+            color: AppColors.muted,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}

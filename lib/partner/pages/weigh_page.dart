@@ -8,6 +8,7 @@ import '../../customer/widgets/common.dart';
 import '../data/partner_store.dart';
 import '../partner_shell.dart';
 import '../widgets/partner_widgets.dart';
+import '../widgets/photo_picker.dart';
 
 /// Catat timbangan (FR-M4, FR-M5, FR-M6).
 ///
@@ -34,6 +35,7 @@ class _WeighPageState extends State<WeighPage> {
   WasteType _type = WasteType.plastik;
   String? _searchError;
   Deposit? _saved;
+  PickedPhoto? _photo;
 
   @override
   void initState() {
@@ -132,6 +134,15 @@ class _WeighPageState extends State<WeighPage> {
     );
     if (saved == null || !mounted) return;
     setState(() => _saved = saved);
+    // Foto diunggah setelah timbangan tersimpan; jika gagal, poin tetap
+    // tercatat dan foto bisa diunggah ulang dari detail setoran.
+    final photo = _photo;
+    if (photo != null) {
+      await runAction(
+        context,
+        () => store.uploadPhoto(saved, photo.bytes, photo.name),
+      );
+    }
   }
 
   @override
@@ -299,6 +310,17 @@ class _WeighPageState extends State<WeighPage> {
                   decoration: const InputDecoration(
                     hintText: 'Contoh: sebagian botol masih ada label',
                   ),
+                ),
+                const SizedBox(height: 16),
+                const FieldLabel('Foto timbangan (opsional)'),
+                PhotoField(
+                  photo: _photo,
+                  onChanged: (p) => setState(() => _photo = p),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Foto angka di timbangan menjadi bukti untuk customer.',
+                  style: TextStyle(fontSize: 11.5, color: AppColors.muted),
                 ),
               ],
             ),
@@ -598,6 +620,7 @@ class _SavedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PartnerScope.of(context); // tampilkan foto setelah selesai diunggah
     final d = deposit;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
@@ -621,6 +644,12 @@ class _SavedView extends StatelessWidget {
                 valueColor: AppColors.emeraldDeep,
               ),
               InfoRow('Waktu', formatStamp(d.weighedAt!)),
+              const SizedBox(height: 12),
+              WeighPhotoView(
+                d,
+                emptyMessage:
+                    'Belum ada foto. Bisa ditambahkan dari detail setoran.',
+              ),
             ],
           ),
         ),

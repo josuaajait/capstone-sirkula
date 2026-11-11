@@ -11,6 +11,10 @@ class AppConfig {
   AppConfig._();
 
   static const demoMode = bool.fromEnvironment('DEMO');
+
+  /// Notifikasi push lewat Firebase. Aktifkan dengan `--dart-define=FCM=true`
+  /// setelah `google-services.json` dipasang (lihat PANDUAN).
+  static const fcmEnabled = bool.fromEnvironment('FCM');
   static const _apiUrlDefine = String.fromEnvironment('API_URL');
 
   /// Alamat bawaan: emulator Android memakai 10.0.2.2 untuk laptop.

@@ -8,6 +8,7 @@ import '../../customer/widgets/common.dart';
 import '../data/partner_store.dart';
 import '../partner_shell.dart';
 import '../widgets/partner_widgets.dart';
+import '../widgets/photo_picker.dart';
 
 /// Detail satu setoran di sisi mitra, beserta aksi sesuai statusnya.
 class PartnerDepositDetailPage extends StatelessWidget {
@@ -98,6 +99,46 @@ class PartnerDepositDetailPage extends StatelessWidget {
               ],
             ),
           ),
+          if (d.status == DepositStatus.verified) ...[
+            const SizedBox(height: 16),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SectionTitle(
+                    'Foto Timbangan',
+                    subtitle: 'Bukti untuk customer',
+                  ),
+                  const SizedBox(height: 12),
+                  WeighPhotoView(d, emptyMessage: 'Belum ada foto timbangan.'),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final photo = await pickWeighPhoto(context);
+                      if (photo == null || !context.mounted) return;
+                      final ok = await runAction(
+                        context,
+                        () => store.uploadPhoto(d, photo.bytes, photo.name),
+                      );
+                      if (ok != null && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Foto timbangan tersimpan.'),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                    label: Text(
+                      d.weighPhotoUrl == null && d.localPhoto == null
+                          ? 'Unggah Foto'
+                          : 'Ganti Foto',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           AppCard(
             child: Column(

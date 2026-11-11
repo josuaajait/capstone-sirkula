@@ -8,11 +8,13 @@ import 'app/api/api_client.dart';
 import 'app/app_config.dart';
 import 'app/auth_service.dart';
 import 'app/login_page.dart';
+import 'app/push_service.dart';
 import 'app/session.dart';
 import 'app/splash_page.dart';
 import 'app/theme.dart';
 import 'customer/customer_shell.dart';
 import 'customer/data/customer_store.dart';
+import 'customer/data/models.dart';
 import 'partner/data/partner_store.dart';
 import 'partner/partner_shell.dart';
 
@@ -30,6 +32,8 @@ Future<void> main() async {
 
   final storage = await SessionStorage.open();
   final api = ApiClient(storage.apiUrl);
+  final push = PushService();
+  await push.init();
   runApp(
     SirkulaApp(
       customerStore: customerStore,
@@ -38,6 +42,7 @@ Future<void> main() async {
       api: api,
       auth: ApiAuthService(api),
       storage: storage,
+      push: push,
     ),
   );
 }
@@ -51,6 +56,7 @@ class SirkulaApp extends StatefulWidget {
     this.api,
     this.auth = const DemoAuthService(),
     this.storage,
+    this.push,
     this.initialRole,
   });
 
@@ -62,6 +68,9 @@ class SirkulaApp extends StatefulWidget {
   final ApiClient? api;
   final AuthService auth;
   final SessionStorage? storage;
+
+  /// Notifikasi bilah status; null di mode demo dan tes.
+  final PushService? push;
 
   /// Lewati halaman masuk (dipakai di test).
   final UserRole? initialRole;
@@ -142,6 +151,9 @@ class _SirkulaAppState extends State<SirkulaApp> {
         await _adminStore.connect(api, user);
     }
     _role = signed.role;
+    _owner = '${signed.role.name}:${signed.email}';
+    await _notifyPush();
+    widget.push?.registerFcm(api);
     _poll?.cancel();
     // Muat ulang berkala agar perubahan dari peran lain ikut terlihat.
     _poll = Timer.periodic(
@@ -162,14 +174,34 @@ class _SirkulaAppState extends State<SirkulaApp> {
         case null:
           break;
       }
+      await _notifyPush();
     } on ApiException {
       // Coba lagi di putaran berikutnya.
     }
   }
 
+  /// Akun yang sedang masuk, untuk membedakan notifikasi antarakun.
+  String? _owner;
+
+  /// Tampilkan notifikasi baru dari server di bilah status HP.
+  Future<void> _notifyPush() async {
+    final push = widget.push;
+    final owner = _owner;
+    if (push == null || owner == null) return;
+    final list = switch (_role) {
+      UserRole.customer => widget.customerStore.notifications,
+      UserRole.partner => widget.partnerStore.notifications,
+      UserRole.admin => _adminStore.notifications,
+      null => const <AppNotification>[],
+    };
+    await push.onNotifications(owner, list);
+  }
+
   Future<void> _logout() async {
     _poll?.cancel();
     setState(() => _role = null);
+    _owner = null;
+    await widget.push?.unregister(widget.api);
     await widget.auth.logout();
     await widget.storage?.saveToken(null);
     widget.customerStore.disconnect();

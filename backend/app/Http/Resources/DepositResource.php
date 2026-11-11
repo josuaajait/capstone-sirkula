@@ -50,7 +50,8 @@ class DepositResource extends JsonResource
             'original_weighed_kg' => $this->original_weighed_kg !== null ? (float) $this->original_weighed_kg : null,
             'corrected_at' => $this->corrected_at,
             'correction_reason' => $this->correction_reason,
-            'weigh_photo_url' => $this->weigh_photo_path ? Storage::disk('public')->url($this->weigh_photo_path) : null,
+            // Memakai host permintaan (misalnya IP laptop), bukan APP_URL.
+            'weigh_photo_url' => $this->weigh_photo_path ? url('/api/media/'.$this->weigh_photo_path) : null,
             'reject_reason' => $this->reject_reason,
             'created_at' => $this->created_at,
             'timeline' => $this->whenLoaded('partner', fn () => $this->timeline()),

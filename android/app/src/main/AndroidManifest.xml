@@ -1,8 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Menghubungi server API Sirkula. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Notifikasi di bilah status (Android 13 ke atas meminta izin). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- usesCleartextTraffic: server uji coba di laptop memakai http://, bukan
+         https://. Hapus atribut ini setelah server online memakai https. -->
     <application
-        android:label="capstone"
+        android:label="Sirkula"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

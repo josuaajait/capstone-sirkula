@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
@@ -327,8 +329,12 @@ class Deposit {
   DateTime? weighedAt;
   String? weighNote;
 
-  /// Foto hasil timbang dari mitra (disimpan di penyimpanan objek S3 nanti).
+  /// Foto hasil timbang dari mitra, disajikan server.
   String? weighPhotoUrl;
+
+  /// Foto yang baru dipilih di HP ini: tampil seketika, dan menjadi satu-
+  /// satunya salinan di mode demo tanpa server.
+  Uint8List? localPhoto;
   String? rejectReason;
 
   /// Berat sebelum dikoreksi mitra (FR-M8); null jika belum pernah dikoreksi.
@@ -488,7 +494,16 @@ class CustomerProfile implements CustomerRef {
 }
 
 class AppNotification {
-  AppNotification(this.title, this.body, this.time, {this.read = false});
+  AppNotification(
+    this.title,
+    this.body,
+    this.time, {
+    this.read = false,
+    this.id,
+  });
+
+  /// ID di server; null untuk notifikasi contoh.
+  final int? id;
 
   factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
     j['title'] as String? ?? '',
@@ -496,6 +511,7 @@ class AppNotification {
     DateTime.tryParse(j['created_at'] as String? ?? '')?.toLocal() ??
         DateTime.now(),
     read: j['read'] as bool? ?? false,
+    id: (j['id'] as num?)?.toInt(),
   );
 
   final String title;

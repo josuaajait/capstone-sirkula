@@ -13,6 +13,8 @@ use App\Models\WasteType;
 use App\Services\DepositService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /** Permintaan, jadwal jemput, dan penimbangan di sisi mitra (FR-M2 sampai FR-M7). */
@@ -117,6 +119,37 @@ class DepositController extends Controller
             $data['note'] ?? null,
             $request->user(),
         );
+
+        return new DepositResource($deposit->refresh()->load(self::RELATIONS));
+    }
+
+    /**
+     * Unggah foto hasil timbang sebagai bukti untuk customer (FR-C6).
+     * Foto lama diganti. Nama file acak agar tautannya tidak bisa ditebak.
+     */
+    public function uploadPhoto(Request $request, Deposit $deposit): DepositResource
+    {
+        $this->authorizeDeposit($request, $deposit);
+        $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ], [
+            'photo.max' => 'Ukuran foto paling besar 5 MB.',
+            'photo.image' => 'File harus berupa foto.',
+        ]);
+        abort_unless(
+            $deposit->status === DepositStatus::Verified,
+            409,
+            'Foto hanya bisa diunggah setelah sampah ditimbang.',
+        );
+
+        $file = $request->file('photo');
+        $ext = strtolower($file->extension() ?: 'jpg');
+        $path = $file->storeAs('weigh-photos', Str::random(40).'.'.($ext === 'jpeg' ? 'jpg' : $ext), 'public');
+        $old = $deposit->weigh_photo_path;
+        $deposit->update(['weigh_photo_path' => $path]);
+        if ($old && $old !== $path) {
+            Storage::disk('public')->delete($old);
+        }
 
         return new DepositResource($deposit->refresh()->load(self::RELATIONS));
     }

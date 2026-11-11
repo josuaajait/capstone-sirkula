@@ -3,6 +3,8 @@
 // Jalankan server dengan database contoh yang baru di-seed, lalu:
 //   flutter test test/e2e_api_test.dart --dart-define=E2E_API=http://127.0.0.1:8000/api
 // Tanpa E2E_API, tes ini dilewati.
+import 'dart:convert';
+
 import 'package:capstone/admin/admin_store.dart';
 import 'package:capstone/app/api/api_client.dart';
 import 'package:capstone/app/auth_service.dart';
@@ -95,6 +97,16 @@ void main() {
       expect(corrected.originalWeighedKg, 4.8);
       await partner.correctWeight(req, 4.8, 'Timbang ulang, ternyata benar');
       expect(req.earnedPoints, 2400);
+
+      // Mitra mengunggah foto timbangan; customer bisa membukanya.
+      final png = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      );
+      await partner.uploadPhoto(req, png, 'timbang.png');
+      expect(req.weighPhotoUrl, contains('/api/media/weigh-photos/'));
+      final photo = await http.get(Uri.parse(req.weighPhotoUrl!));
+      expect(photo.statusCode, 200);
+      expect(photo.bodyBytes.length, greaterThan(0));
 
       // Customer melihat poin masuk.
       await customer.refresh();

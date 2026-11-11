@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
 
 import '../../app/api/api_client.dart';
@@ -510,6 +512,36 @@ class PartnerStore extends ChangeNotifier {
       (d.customer as PartnerCustomer).points += diff;
     }
     notifyListeners();
+    return d;
+  }
+
+  /// Unggah foto hasil timbang sebagai bukti untuk customer. Di mode demo
+  /// foto hanya disimpan di memori HP ini.
+  Future<Deposit> uploadPhoto(
+    Deposit d,
+    Uint8List bytes,
+    String filename,
+  ) async {
+    d.localPhoto = bytes;
+    notifyListeners();
+    if (_api case final api?) {
+      try {
+        final json = await api.upload(
+          '/partner/deposits/${d.id}/photo',
+          field: 'photo',
+          bytes: bytes,
+          filename: filename,
+        );
+        d.updateFrom(parseDeposit(dataObject(json), _customerFromJson));
+      } on ApiException {
+        d.localPhoto = null; // gagal: jangan tampilkan seolah tersimpan
+        notifyListeners();
+        rethrow;
+      }
+      notifyListeners();
+    } else if (identical(d.customer, customerStore.profile)) {
+      customerStore.touch();
+    }
     return d;
   }
 
