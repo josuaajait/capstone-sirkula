@@ -175,4 +175,83 @@ class DepositCycleTest extends TestCase
         $other = Deposit::where('customer_id', '!=', $this->customer->id)->first();
         $this->actingAs($this->customer)->getJson("/api/customer/deposits/{$other->code}")->assertNotFound();
     }
+
+    /** Catat timbangan datang langsung untuk customer, kembalikan kode setoran. */
+    private function walkIn(float $kg): string
+    {
+        $pet = WasteType::where('code', 'petBening')->first();
+
+        return $this->actingAs($this->partner)->postJson('/api/partner/deposits/walk-in', [
+            'customer_id' => $this->customer->id,
+            'waste_type_id' => $pet->id,
+            'weighed_kg' => $kg,
+        ])->assertCreated()->json('data.code');
+    }
+
+    public function test_koreksi_berat_menyesuaikan_poin(): void
+    {
+        $code = $this->walkIn(8.4); // 4.200 poin
+        $balance = $this->customer->refresh()->points_balance;
+
+        // Tarif berubah setelah ditimbang: koreksi tetap memakai tarif lama.
+        WasteType::where('code', 'petBening')->update(['points_per_kg' => 999]);
+
+        $this->actingAs($this->partner)->postJson("/api/partner/deposits/{$code}/correct", [
+            'weighed_kg' => 4.8,
+            'reason' => 'Salah ketik angka timbangan',
+        ])->assertOk()
+            ->assertJsonPath('data.weighed_kg', 4.8)
+            ->assertJsonPath('data.original_weighed_kg', 8.4)
+            ->assertJsonPath('data.points_earned', 2400)
+            ->assertJsonPath('data.correction_reason', 'Salah ketik angka timbangan');
+        $this->assertSame($balance - 1800, $this->customer->refresh()->points_balance);
+        $this->assertSame(-1800, PointTransaction::where('user_id', $this->customer->id)->latest('id')->first()->amount);
+
+        // Koreksi kedua menaikkan berat; berat asli tetap tercatat.
+        $this->actingAs($this->partner)->postJson("/api/partner/deposits/{$code}/correct", [
+            'weighed_kg' => 5,
+            'reason' => 'Timbang ulang di depan customer',
+        ])->assertOk()->assertJsonPath('data.original_weighed_kg', 8.4)->assertJsonPath('data.points_earned', 2500);
+        $this->assertSame($balance - 1700, $this->customer->refresh()->points_balance);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'deposit.corrected']);
+    }
+
+    public function test_koreksi_ditolak_jika_tidak_sah(): void
+    {
+        $code = $this->walkIn(2);
+        $url = "/api/partner/deposits/{$code}/correct";
+
+        $this->actingAs($this->partner)->postJson($url, ['weighed_kg' => 2, 'reason' => 'tidak berubah'])
+            ->assertStatus(422)->assertJsonPath('reason', 'no_change');
+        $this->actingAs($this->partner)->postJson($url, ['weighed_kg' => 3])
+            ->assertStatus(422)->assertJsonValidationErrors('reason');
+        $this->actingAs($this->partner)->postJson($url, ['weighed_kg' => 3, 'reason' => 'mau ubah', 'points' => 99999])
+            ->assertStatus(422)->assertJsonValidationErrors('points');
+        $this->actingAs($this->customer)->postJson($url, ['weighed_kg' => 3, 'reason' => 'curang dong'])
+            ->assertForbidden();
+
+        // Setoran yang belum ditimbang tidak bisa dikoreksi.
+        $waiting = Deposit::where('status', 'waiting')->first();
+        $this->actingAs($this->partner)->postJson("/api/partner/deposits/{$waiting->code}/correct", [
+            'weighed_kg' => 3, 'reason' => 'belum ditimbang',
+        ])->assertStatus(409);
+
+        // Lewat 7 hari: harus lewat admin.
+        Deposit::where('code', $code)->update(['weighed_at' => now()->subDays(8)]);
+        $this->actingAs($this->partner)->postJson($url, ['weighed_kg' => 3, 'reason' => 'sudah lama'])
+            ->assertStatus(409)->assertJsonPath('reason', 'correction_expired');
+    }
+
+    public function test_koreksi_tidak_boleh_membuat_saldo_negatif(): void
+    {
+        $code = $this->walkIn(100); // 50.000 poin
+        $this->customer->refresh();
+        // Customer menghabiskan hampir semua poin.
+        app(\App\Services\PointLedger::class)->debit($this->customer, $this->customer->points_balance - 100, null, 'uji');
+
+        $this->actingAs($this->partner)->postJson("/api/partner/deposits/{$code}/correct", [
+            'weighed_kg' => 1, 'reason' => 'Salah ketik angka',
+        ])->assertStatus(422)->assertJsonPath('reason', 'insufficient_points');
+        $this->assertSame(100.0, Deposit::where('code', $code)->first()->weighed_kg);
+    }
 }

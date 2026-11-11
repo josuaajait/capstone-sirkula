@@ -91,16 +91,20 @@ class _DepositPageState extends State<DepositPage> {
     );
     if (confirmed != true || !mounted) return;
     final store = CustomerScope.read(context);
-    final deposit = store.submitDeposit(
-      partner: _partner,
-      type: _type,
-      estimatedKg: _kg,
-      method: _method,
-      pickupDate: _method == DepositMethod.pickup ? _date : null,
-      pickupSlot: _method == DepositMethod.pickup ? _slot : null,
-      address: _method == DepositMethod.pickup ? _address.text.trim() : null,
-      note: _note.text,
+    final deposit = await runAction(
+      context,
+      () => store.submitDeposit(
+        partner: _partner,
+        type: _type,
+        estimatedKg: _kg,
+        method: _method,
+        pickupDate: _method == DepositMethod.pickup ? _date : null,
+        pickupSlot: _method == DepositMethod.pickup ? _slot : null,
+        address: _method == DepositMethod.pickup ? _address.text.trim() : null,
+        note: _note.text,
+      ),
     );
+    if (deposit == null || !mounted) return;
     setState(() {
       _sent = deposit;
       _note.clear();

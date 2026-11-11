@@ -51,10 +51,7 @@ class PartnerProfilePage extends StatelessWidget {
                 InfoRow('Email', info.email),
                 InfoRow('Jam operasional', p.hours),
                 InfoRow('Bergabung', formatDate(info.joined)),
-                InfoRow(
-                  'Target bulanan',
-                  formatKg(PartnerStore.monthlyTargetKg),
-                ),
+                InfoRow('Target bulanan', formatKg(store.monthlyTargetKg)),
               ],
             ),
           ),

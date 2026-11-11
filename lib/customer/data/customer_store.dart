@@ -1,14 +1,16 @@
 import 'package:flutter/widgets.dart';
 
+import '../../app/api/api_client.dart';
+import '../../app/api/parsers.dart';
 import '../../app/format.dart';
 
 import 'models.dart';
 
-/// Penyimpanan state customer di memori.
+/// State customer.
 ///
-/// Backend Laravel belum ada, jadi semua data di sini adalah contoh. Saat API
-/// siap, isi method di kelas ini diganti dengan panggilan HTTP tanpa perlu
-/// mengubah halaman.
+/// Ada dua mode. Tanpa server (mode demo dan tes), semua data adalah contoh
+/// di memori. Setelah [connect], data diambil dari API Laravel dan setiap aksi
+/// dikirim ke server; halaman tidak perlu tahu mode mana yang dipakai.
 class CustomerStore extends ChangeNotifier {
   CustomerStore() {
     _seed();
@@ -29,9 +31,20 @@ class CustomerStore extends ChangeNotifier {
     hours: 'Senin–Sabtu, 08.00–17.00',
   );
 
-  Partner get partner => bankSampah;
+  Partner get partner => _partner ?? bankSampah;
+  Partner? _partner;
 
-  final rewards = const [
+  ApiClient? _api;
+
+  /// True jika data diambil dari server.
+  bool get isRemote => _api != null;
+
+  /// Ringkasan beranda dari server: total kg, CO2, poin bulan ini.
+  ({double kg, double co2, int monthPoints})? _summary;
+
+  List<Reward> rewards = _demoRewards;
+
+  static const _demoRewards = [
     Reward(
       id: 'RW-VB10',
       initials: 'VB',
@@ -81,13 +94,17 @@ class CustomerStore extends ChangeNotifier {
 
   // ---------- Ringkasan untuk beranda ----------
 
-  double get totalVerifiedKg => deposits
+  double get totalVerifiedKg => _summary?.kg ?? _localVerifiedKg;
+
+  double get _localVerifiedKg => deposits
       .where((d) => d.status == DepositStatus.verified)
       .fold(0.0, (sum, d) => sum + (d.weighedKg ?? 0));
 
-  double get co2AvoidedKg => totalVerifiedKg * co2PerKg;
+  double get co2AvoidedKg => _summary?.co2 ?? totalVerifiedKg * co2PerKg;
 
-  int get pointsThisMonth {
+  int get pointsThisMonth => _summary?.monthPoints ?? _localPointsThisMonth;
+
+  int get _localPointsThisMonth {
     final now = DateTime.now();
     return deposits
         .where(
@@ -123,7 +140,7 @@ class CustomerStore extends ChangeNotifier {
 
   // ---------- Aksi ----------
 
-  Deposit submitDeposit({
+  Future<Deposit> submitDeposit({
     required Partner partner,
     required WasteType type,
     required double estimatedKg,
@@ -132,7 +149,21 @@ class CustomerStore extends ChangeNotifier {
     String? pickupSlot,
     String? address,
     String? note,
-  }) {
+  }) async {
+    if (_api case final api?) {
+      final json = await api.post('/customer/deposits', {
+        'waste_type_id': type.serverId,
+        'estimated_kg': estimatedKg,
+        'method': method == DepositMethod.pickup ? 'pickup' : 'drop_off',
+        if (pickupDate != null) 'pickup_date': apiDate(pickupDate),
+        'pickup_slot': ?pickupSlot,
+        'address': ?address,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      });
+      final created = parseDeposit(dataObject(json), (_) => profile);
+      await _refreshQuietly();
+      return depositById(created.id) ?? created;
+    }
     final now = DateTime.now();
     final id = nextDepositId(now);
     final deposit = Deposit(
@@ -173,8 +204,22 @@ class CustomerStore extends ChangeNotifier {
   }
 
   /// Menukar poin. Mengembalikan null jika saldo tidak cukup.
-  Redemption? redeem(Reward reward, String address) {
+  Future<Redemption?> redeem(Reward reward, String address) async {
     if (reward.points > points) return null;
+    if (_api case final api?) {
+      try {
+        final json = await api.post('/customer/redemptions', {
+          'reward_id': reward.serverId,
+          'address': address,
+        });
+        final r = parseRedemption(dataObject(json));
+        await _refreshQuietly();
+        return r;
+      } on ApiException catch (e) {
+        if (e.reason == 'insufficient_points') return null;
+        rethrow;
+      }
+    }
     final now = DateTime.now();
     _redeemSeq++;
     points -= reward.points;
@@ -198,12 +243,23 @@ class CustomerStore extends ChangeNotifier {
     return redemption;
   }
 
-  void updateProfile({
+  Future<void> updateProfile({
     required String name,
     required String phone,
     required String email,
     required String address,
-  }) {
+  }) async {
+    if (_api case final api?) {
+      final json = await api.put('/customer/profile', {
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'address': address,
+      });
+      profile = _profileFromJson(dataObject(json));
+      notifyListeners();
+      return;
+    }
     profile
       ..name = name
       ..phone = phone
@@ -215,7 +271,7 @@ class CustomerStore extends ChangeNotifier {
 
   // ---------- Dipanggil dari sisi mitra ----------
   //
-  // Selama backend belum ada, aplikasi customer dan mitra berbagi data di
+  // Di mode demo (tanpa server), aplikasi customer dan mitra berbagi data di
   // memori yang sama agar satu siklus setoran bisa dicoba dari ujung ke ujung.
 
   /// Nomor setoran berikutnya, contoh STR-240521-01.
@@ -259,7 +315,7 @@ class CustomerStore extends ChangeNotifier {
     required String phone,
     required String address,
   }) {
-    if (profile.email == email) return;
+    if (isRemote || profile.email == email) return;
     deposits.clear();
     redemptions.clear();
     notifications.clear();
@@ -298,6 +354,113 @@ class CustomerStore extends ChangeNotifier {
       n.read = true;
     }
     notifyListeners();
+    _api?.post('/notifications/read-all').catchError((_) => null);
+  }
+
+  Deposit? depositById(String id) {
+    for (final d in deposits) {
+      if (d.id == id) return d;
+    }
+    return null;
+  }
+
+  // ---------- Sambungan ke server ----------
+
+  /// Mulai memakai data server untuk akun [user] (JSON dari `/auth/login`).
+  Future<void> connect(ApiClient api, Map<String, dynamic> user) async {
+    _api = api;
+    profile = _profileFromJson(user);
+    points = parseInt(user['points_balance']);
+    deposits.clear();
+    redemptions.clear();
+    notifications.clear();
+    await refresh();
+  }
+
+  /// Kembali ke data contoh, dipanggil saat keluar akun.
+  void disconnect() {
+    if (_api == null) return;
+    _api = null;
+    Catalog.invalidate();
+    _summary = null;
+    _partner = null;
+    rewards = _demoRewards;
+    WasteType.resetToDefaults();
+    deposits.clear();
+    redemptions.clear();
+    notifications.clear();
+    points = 24500;
+    _depositSeq = 2;
+    _redeemSeq = 8;
+    _seed();
+    notifyListeners();
+  }
+
+  /// Ambil ulang semua data customer dari server.
+  Future<void> refresh() async {
+    final api = _api;
+    if (api == null) return;
+    final results = await Future.wait([
+      Catalog.cached(api),
+      api.get('/customer/summary'),
+      api.get('/customer/deposits'),
+      api.get('/customer/redemptions'),
+      api.get('/notifications'),
+    ]);
+    if (!identical(api, _api)) return; // sudah keluar akun
+    final catalog = results[0] as Catalog;
+    final summary = Json.from(results[1] as Map);
+    _partner = catalog.partner;
+    rewards = catalog.rewards;
+    points = parseInt(summary['points_balance']);
+    _summary = (
+      kg: parseDouble(summary['total_verified_kg']) ?? 0,
+      co2: parseDouble(summary['co2_avoided_kg']) ?? 0,
+      monthPoints: parseInt(summary['points_this_month']),
+    );
+
+    final fresh = [
+      for (final j in dataList(results[2])) parseDeposit(j, (_) => profile),
+    ];
+    // Objek lama diperbarui di tempat agar halaman detail yang terbuka ikut
+    // berubah.
+    final old = {for (final d in deposits) d.id: d};
+    deposits
+      ..clear()
+      ..addAll([
+        for (final d in fresh)
+          if (old[d.id] case final o?) (o..updateFrom(d)) else d,
+      ]);
+    redemptions
+      ..clear()
+      ..addAll(dataList(results[3]).map(parseRedemption));
+    notifications
+      ..clear()
+      ..addAll(dataList(results[4]).map(AppNotification.fromJson));
+    notifyListeners();
+  }
+
+  /// Muat ulang setelah aksi; galat jaringan di sini tidak menggagalkan aksi
+  /// yang sudah tersimpan di server.
+  Future<void> _refreshQuietly() async {
+    try {
+      await refresh();
+    } on ApiException {
+      notifyListeners();
+    }
+  }
+
+  static CustomerProfile _profileFromJson(Map<String, dynamic> j) {
+    final name = j['name'] as String? ?? '';
+    return CustomerProfile(
+      id: j['code'] as String? ?? '',
+      name: name,
+      initials: j['initials'] as String? ?? _initials(name),
+      phone: j['phone'] as String? ?? '',
+      email: j['email'] as String? ?? '',
+      address: j['address'] as String? ?? '',
+      tier: 'Member Hijau',
+    );
   }
 
   // ---------- Data contoh ----------
@@ -388,7 +551,7 @@ class CustomerStore extends ChangeNotifier {
     redemptions.add(
       Redemption(
         id: 'RDM-${_yymmdd(daysAgo(6))}-08',
-        reward: rewards[0],
+        reward: _demoRewards[0],
         address: profile.address,
         createdAt: daysAgo(6),
         status: RedemptionStatus.done,

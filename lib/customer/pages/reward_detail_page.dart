@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/api/api_client.dart';
 import '../../app/format.dart';
 import '../../app/theme.dart';
 import '../data/customer_store.dart';
@@ -133,13 +134,24 @@ class RewardDetailPage extends StatelessWidget {
     );
     if (address == null || !context.mounted) return;
 
-    final redemption = store.redeem(reward, address);
+    final Redemption? redemption;
+    try {
+      redemption = await store.redeem(reward, address);
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
+    if (!context.mounted) return;
     if (redemption == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Saldo poin tidak cukup.')));
       return;
     }
+    final done = redemption;
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     navigator.pop();
@@ -149,7 +161,7 @@ class RewardDetailPage extends StatelessWidget {
         action: SnackBarAction(
           label: 'Lihat',
           textColor: AppColors.lime,
-          onPressed: () => showRedemptionSheet(navigator.context, redemption),
+          onPressed: () => showRedemptionSheet(navigator.context, done),
         ),
       ),
     );

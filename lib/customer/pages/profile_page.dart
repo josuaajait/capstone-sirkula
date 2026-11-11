@@ -45,14 +45,19 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    CustomerScope.read(context).updateProfile(
-      name: _name.text.trim(),
-      phone: _phone.text.trim(),
-      email: _email.text.trim(),
-      address: _address.text.trim(),
-    );
+    final store = CustomerScope.read(context);
+    final ok = await runAction(context, () async {
+      await store.updateProfile(
+        name: _name.text.trim(),
+        phone: _phone.text.trim(),
+        email: _email.text.trim(),
+        address: _address.text.trim(),
+      );
+      return true;
+    });
+    if (ok != true || !mounted) return;
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Perubahan profil tersimpan.')),

@@ -24,6 +24,7 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscure = true;
   bool _agree = false;
   String? _error;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -33,25 +34,29 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_busy) return;
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
     if (!_agree) {
       setState(() => _error = 'Setujui syarat sampah dan privasi data dulu.');
       return;
     }
-    final error = registerCustomer(
-      name: _name.text,
-      email: _email.text,
-      phone: _phone.text,
-      address: _address.text,
-      password: _password.text,
-    );
-    if (error != null) {
-      setState(() => _error = error);
-      return;
+    setState(() => _busy = true);
+    try {
+      final account = await AppServices.of(context).auth.register(
+        name: _name.text,
+        email: _email.text,
+        phone: _phone.text,
+        address: _address.text,
+        password: _password.text,
+      );
+      if (mounted) Navigator.of(context).pop(account);
+    } on Exception catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    Navigator.of(context).pop(findAccount(_email.text));
   }
 
   InputDecoration _hint(String hint) => InputDecoration(hintText: hint);
@@ -213,7 +218,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           ],
                           const SizedBox(height: 16),
                           FilledButton(
-                            onPressed: _submit,
+                            onPressed: _busy ? null : _submit,
                             child: const Text('Daftar'),
                           ),
                         ],

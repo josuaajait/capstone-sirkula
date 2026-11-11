@@ -121,6 +121,21 @@ class DepositController extends Controller
         return new DepositResource($deposit->refresh()->load(self::RELATIONS));
     }
 
+    /** Koreksi berat yang salah catat beserta alasannya (FR-M8). */
+    public function correct(Request $request, Deposit $deposit): DepositResource
+    {
+        $this->authorizeDeposit($request, $deposit);
+        $data = $request->validate([
+            'weighed_kg' => ['required', 'numeric', 'gt:0', 'max:'.DepositService::MAX_KG],
+            'reason' => ['required', 'string', 'min:5', 'max:255'],
+            'points' => ['prohibited'],
+        ], ['points.prohibited' => 'Poin dihitung otomatis oleh sistem.']);
+
+        $this->service->correct($deposit, (float) $data['weighed_kg'], trim($data['reason']), $request->user());
+
+        return new DepositResource($deposit->refresh()->load(self::RELATIONS));
+    }
+
     /** Catat setoran customer yang datang langsung tanpa permintaan (FR-M5). */
     public function walkIn(Request $request): DepositResource
     {

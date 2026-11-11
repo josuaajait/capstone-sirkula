@@ -230,6 +230,66 @@ class DepositService
         return $deposit;
     }
 
+    /** Koreksi hanya boleh dalam jangka ini setelah ditimbang. */
+    public const CORRECTION_DAYS = 7;
+
+    /**
+     * Koreksi berat yang salah catat (FR-M8). Tarif poin tetap memakai tarif
+     * saat ditimbang; selisih poin dikreditkan atau didebit dari saldo
+     * customer dan tercatat di riwayat poin serta log audit.
+     */
+    public function correct(Deposit $deposit, float $kg, string $reason, User $by): Deposit
+    {
+        $this->assertStatus($deposit, [DepositStatus::Verified], 'Hanya setoran yang sudah ditimbang yang bisa dikoreksi.');
+        if ($deposit->weighed_at->lt(now()->subDays(self::CORRECTION_DAYS))) {
+            throw new BusinessRuleException('Koreksi hanya bisa dalam '.self::CORRECTION_DAYS.' hari setelah ditimbang. Hubungi admin Sirkula.', 'correction_expired', 409);
+        }
+        $weighed = WasteType::roundKg($kg);
+        if ($weighed <= 0 || $weighed > self::MAX_KG) {
+            throw new BusinessRuleException('Berat harus lebih dari 0 dan paling banyak '.Fmt::kg(self::MAX_KG).'.', 'weight_out_of_range');
+        }
+        if (abs($weighed - $deposit->weighed_kg) < 0.05) {
+            throw new BusinessRuleException('Berat baru sama dengan berat lama.', 'no_change');
+        }
+
+        $deposit = DB::transaction(function () use ($deposit, $weighed, $reason, $by) {
+            $deposit = Deposit::whereKey($deposit->id)->lockForUpdate()->firstOrFail();
+            $oldKg = $deposit->weighed_kg;
+            $oldPoints = $deposit->points_earned;
+            $newPoints = WasteType::pointsFor($weighed, $deposit->points_per_kg);
+            $diff = $newPoints - $oldPoints;
+
+            $deposit->fill([
+                'original_weighed_kg' => $deposit->original_weighed_kg ?? $oldKg,
+                'weighed_kg' => $weighed,
+                'points_earned' => $newPoints,
+                'corrected_at' => now(),
+                'correction_reason' => $reason,
+            ]);
+            $changes = Audit::diff($deposit);
+            $deposit->save();
+
+            $description = "Koreksi {$deposit->code}: ".Fmt::kg($oldKg).' menjadi '.Fmt::kg($weighed);
+            if ($diff > 0) {
+                $this->ledger->credit($deposit->customer, $diff, $deposit, $description, $by);
+            } elseif ($diff < 0) {
+                // Gagal dengan "Poin tidak cukup" jika poin sudah terpakai.
+                $this->ledger->debit($deposit->customer, -$diff, $deposit, $description, $by);
+            }
+            Audit::log($by, 'deposit.corrected', $deposit, $changes + ['reason' => [null, $reason]]);
+
+            return $deposit;
+        });
+
+        $this->notifier->send(
+            $deposit->customer,
+            'Berat setoran dikoreksi',
+            "{$deposit->code} dikoreksi menjadi ".Fmt::kg($deposit->weighed_kg)." ({$reason}). Poin disesuaikan menjadi ".Fmt::number($deposit->points_earned).'.',
+        );
+
+        return $deposit;
+    }
+
     /** "Botol PET bening" menjadi "botol PET bening". */
     public static function lowerFirst(string $text): string
     {

@@ -59,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('deposits/{deposit}/reschedule', [Partner\DepositController::class, 'reschedule']);
         Route::post('deposits/{deposit}/depart', [Partner\DepositController::class, 'depart']);
         Route::post('deposits/{deposit}/weigh', [Partner\DepositController::class, 'weigh']);
+        Route::post('deposits/{deposit}/correct', [Partner\DepositController::class, 'correct']);
     });
 
     Route::prefix('admin')->middleware('role:admin')->group(function () {
@@ -82,5 +83,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('redemptions/{redemption}/complete', [Admin\RedemptionController::class, 'complete']);
         Route::get('reports', [Admin\ReportController::class, 'index']);
         Route::get('reports/export.csv', [Admin\ReportController::class, 'exportCsv']);
+        Route::get('reports/link', [Admin\ReportController::class, 'link']);
     });
+});
+
+// Unduhan laporan lewat tautan bertanda tangan dari /admin/reports/link,
+// agar bisa dibuka di peramban HP tanpa token.
+Route::middleware('signed:relative')->prefix('reports')->group(function () {
+    Route::get('download.csv', [Admin\ReportController::class, 'exportCsv'])->name('reports.csv');
+    Route::get('print', [Admin\ReportController::class, 'printable'])->name('reports.print');
 });

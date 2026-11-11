@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/format.dart';
 import '../../app/theme.dart';
@@ -82,6 +83,12 @@ class PartnerDepositDetailPage extends StatelessWidget {
                 if (d.note != null) InfoRow('Catatan customer', d.note!),
                 if (d.weighNote != null)
                   InfoRow('Catatan timbang', d.weighNote!),
+                if (d.originalWeighedKg != null)
+                  InfoRow(
+                    'Dikoreksi dari',
+                    '${formatKg(d.originalWeighedKg!)} · ${d.correctionReason ?? '-'}',
+                    valueColor: AppColors.amberDeep,
+                  ),
                 if (d.rejectReason != null)
                   InfoRow(
                     'Alasan ditolak',
@@ -144,7 +151,7 @@ class PartnerDepositDetailPage extends StatelessWidget {
       case DepositStatus.scheduled when d.method == DepositMethod.pickup:
         return [
           FilledButton(
-            onPressed: () => store.depart(d),
+            onPressed: () => runAction(context, () => store.depart(d)),
             child: const Text('Berangkat Menjemput'),
           ),
           const SizedBox(height: 10),
@@ -159,8 +166,149 @@ class PartnerDepositDetailPage extends StatelessWidget {
           FilledButton(onPressed: weigh, child: const Text('Catat Timbangan')),
         ];
       case DepositStatus.verified:
+        if (!d.canCorrect) return const [];
+        return [
+          OutlinedButton.icon(
+            onPressed: () => _correct(context, store, d),
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Koreksi Berat'),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Koreksi bisa dilakukan sampai ${Deposit.correctionDays} hari setelah ditimbang. Poin customer ikut disesuaikan.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11.5, color: AppColors.muted),
+          ),
+        ];
       case DepositStatus.rejected:
         return const [];
     }
+  }
+
+  Future<void> _correct(
+    BuildContext context,
+    PartnerStore store,
+    Deposit d,
+  ) async {
+    final result = await showModalBottomSheet<(double, String)>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.white,
+      builder: (_) => _CorrectSheet(deposit: d),
+    );
+    if (result == null || !context.mounted) return;
+    final saved = await runAction(
+      context,
+      () => store.correctWeight(d, result.$1, result.$2),
+    );
+    if (saved != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Berat dikoreksi menjadi ${formatKg(saved.weighedKg!)}. Poin customer: ${formatNumber(saved.earnedPoints!)}.',
+          ),
+        ),
+      );
+    }
+  }
+}
+
+class _CorrectSheet extends StatefulWidget {
+  const _CorrectSheet({required this.deposit});
+  final Deposit deposit;
+
+  @override
+  State<_CorrectSheet> createState() => _CorrectSheetState();
+}
+
+class _CorrectSheetState extends State<_CorrectSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _kg = TextEditingController();
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _kg.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.pop(context, (parseKg(_kg.text)!, _reason.text.trim()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.deposit;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Koreksi berat',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Berat tercatat ${formatKg(d.weighedKg!)} (${formatNumber(d.earnedPoints!)} poin). Poin dihitung ulang dengan tarif saat ditimbang.',
+              style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+            ),
+            const SizedBox(height: 16),
+            const FieldLabel('Berat yang benar (kg)'),
+            TextFormField(
+              key: const ValueKey('correct-kg'),
+              controller: _kg,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*[,.]?\d?')),
+              ],
+              decoration: const InputDecoration(hintText: 'Contoh: 4,8'),
+              validator: (v) {
+                final kg = parseKg(v ?? '');
+                if (kg == null || kg <= 0 || kg > maxWeighKg) {
+                  return 'Isi berat antara 0,1 dan ${formatKg(maxWeighKg)}.';
+                }
+                if ((kg - d.weighedKg!).abs() < 0.05) {
+                  return 'Berat baru sama dengan berat lama.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            const FieldLabel('Alasan koreksi'),
+            TextFormField(
+              key: const ValueKey('correct-reason'),
+              controller: _reason,
+              maxLength: 255,
+              decoration: const InputDecoration(
+                hintText: 'Contoh: salah ketik angka timbangan',
+              ),
+              validator: (v) => (v == null || v.trim().length < 5)
+                  ? 'Tulis alasan (minimal 5 huruf).'
+                  : null,
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: _submit,
+              child: const Text('Simpan Koreksi'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

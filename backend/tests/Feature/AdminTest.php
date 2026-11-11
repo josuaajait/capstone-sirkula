@@ -78,4 +78,32 @@ class AdminTest extends TestCase
         $res->assertOk();
         $this->assertStringContainsString('Laporan Sirkula', $res->streamedContent());
     }
+
+    public function test_tautan_unduh_laporan_bertanda_tangan(): void
+    {
+        $from = now()->subDays(60)->toDateString();
+        $csv = $this->actingAs($this->admin)
+            ->getJson("/api/admin/reports/link?from={$from}&format=csv")
+            ->assertOk()->json('url');
+        $pdf = $this->actingAs($this->admin)
+            ->getJson("/api/admin/reports/link?from={$from}&format=pdf")
+            ->assertOk()->json('url');
+
+        // Tautan bisa dibuka tanpa token.
+        $this->app['auth']->forgetGuards();
+        $res = $this->get($csv);
+        $res->assertOk();
+        $this->assertStringContainsString('Laporan Sirkula', $res->streamedContent());
+        $this->get($pdf)->assertOk()->assertSee('Simpan sebagai PDF');
+
+        // Tanpa tanda tangan atau tanda tangan diubah: ditolak.
+        $this->get('/api/reports/print')->assertForbidden();
+        $this->get(str_replace('signature=', 'signature=x', $pdf))->assertForbidden();
+    }
+
+    public function test_hanya_admin_yang_bisa_minta_tautan_laporan(): void
+    {
+        $customer = User::where('email', 'customer1@example.com')->first();
+        $this->actingAs($customer)->getJson('/api/admin/reports/link?format=csv')->assertForbidden();
+    }
 }

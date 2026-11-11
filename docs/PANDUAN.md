@@ -8,7 +8,7 @@ Panduan ini ditulis untuk orang yang **tidak terbiasa dengan pemrograman**. Isin
 
 Repositori proyek: <https://github.com/josuaajait/capstone-sirkula>
 
-*Terakhir diperbarui: 9 November 2026.*
+*Terakhir diperbarui: 11 November 2026.*
 
 ---
 
@@ -21,7 +21,7 @@ Repositori proyek: <https://github.com/josuaajait/capstone-sirkula>
 5. [Menjalankan dari kode sumber (Windows)](#5-menjalankan-dari-kode-sumber-windows)
 6. [Mencoba aplikasi: akun contoh dan alur uji](#6-mencoba-aplikasi-akun-contoh-dan-alur-uji)
 7. [Memperbarui ke versi terbaru](#7-memperbarui-ke-versi-terbaru)
-8. [Menjalankan backend (nanti)](#8-menjalankan-backend-nanti)
+8. [Menjalankan backend (API Laravel)](#8-menjalankan-backend-api-laravel)
 9. [Masalah yang sering muncul](#9-masalah-yang-sering-muncul)
 10. [Memantau progres lewat GitHub](#10-memantau-progres-lewat-github)
 11. [Daftar istilah](#11-daftar-istilah)
@@ -36,15 +36,16 @@ Sirkula terdiri dari tiga bagian:
 
 | Bagian | Untuk siapa | Teknologi | Status |
 | --- | --- | --- | --- |
-| Aplikasi HP | Customer dan mitra bank sampah | Flutter | **Tampilan dan alur utama sudah jadi**, memakai data contoh |
-| API (server) | Dipakai aplikasi HP di belakang layar | Laravel | **Sudah jadi** di folder `backend/` (23 tes lulus), belum disambungkan ke aplikasi HP |
-| Peran Admin di aplikasi HP | Staf perusahaan | Flutter (memakai API Laravel) | Belum dibuat. Tidak ada panel admin web |
+| Aplikasi HP | Customer dan mitra bank sampah | Flutter | **Sudah jadi dan tersambung ke API** |
+| API (server) | Dipakai aplikasi HP di belakang layar | Laravel | **Sudah jadi** di folder `backend/` (28 tes lulus) |
+| Peran Admin di aplikasi HP | Staf perusahaan | Flutter (memakai API Laravel) | **Sudah jadi**. Tidak ada panel admin web |
 
 **Hal penting yang perlu dipahami:**
 
-- Aplikasi HP sudah bisa dicoba dari awal sampai akhir: daftar, masuk, setor sampah, mitra menimbang, poin masuk, lalu tukar hadiah.
-- Karena server belum ada, **semua data hanya tersimpan sementara di memori**. Data akan kembali ke kondisi awal setiap kali aplikasi ditutup atau halaman browser dimuat ulang.
-- Data di dalamnya, seperti nama bank sampah, hadiah, dan riwayat setoran, adalah **contoh**, bukan data sungguhan.
+- Aplikasi HP sudah bisa dicoba dari awal sampai akhir: daftar, masuk, setor sampah, mitra menimbang, poin masuk, tukar hadiah, lalu admin mengirim hadiah.
+- Data tersimpan di basis data MySQL lewat API Laravel, jadi **tidak hilang** saat aplikasi ditutup, dan customer, mitra, serta admin melihat data yang sama.
+- Server Laravel harus dijalankan dulu di laptop (lihat [bagian 8](#8-menjalankan-backend-api-laravel)). Untuk mencoba tanpa server, aplikasi bisa dijalankan dalam **mode demo** dengan data contoh di memori (lihat [bagian 5.7](#57-jalankan-aplikasi)).
+- Data awal di server, seperti riwayat setoran dan saldo, adalah **contoh**, bukan data sungguhan.
 
 Bank sampah yang dilayani: **BSI Ias Toba** (satu-satunya mitra).
 
@@ -62,12 +63,13 @@ Kode kebutuhan seperti `FR-C3` merujuk ke tabel kebutuhan fungsional di [PRD](PR
 | --- | --- | --- |
 | Masuk dengan email atau nomor ponsel dan kata sandi | FR-A2 | ✅ Selesai |
 | Tampilan berbeda sesuai peran akun (customer atau mitra), bukan dipilih bebas | FR-A3 | ✅ Selesai |
-| Email `@sirkula.id` (staf perusahaan) diarahkan ke panel admin | FR-A3 | ✅ Selesai untuk sementara; akan diganti peran Admin di aplikasi |
+| Email `@sirkula.id` (staf perusahaan) masuk sebagai peran Admin di aplikasi | FR-A3 | ✅ Selesai |
 | Daftar akun customer baru, dengan cek email dan nomor ganda | FR-A4 | ✅ Selesai |
 | Aturan kata sandi: minimal 8 karakter, ada huruf dan angka | FR-A4 | ✅ Selesai |
-| Lupa kata sandi dengan kode verifikasi | FR-A5 | ✅ Selesai, kode masih tiruan (`123456`) |
+| Lupa kata sandi dengan kode verifikasi | FR-A5 | ✅ Selesai. Kode dibuat server; selama uji coba kodenya ditampilkan di layar karena pengiriman email/SMS belum ada |
+| Tetap masuk setelah aplikasi ditutup (sesi tersimpan di HP) | FR-A2 | ✅ Selesai |
 | Mitra tidak bisa daftar sendiri, karena didaftarkan perusahaan | FR-P2 | ✅ Sesuai rancangan |
-| Layar pembuka (splash) | FR-A1 | ⏳ Belum, prioritas Berikutnya |
+| Layar pembuka (splash) saat memulihkan sesi | FR-A1 | ✅ Selesai |
 
 ### 2.2 Aplikasi customer
 
@@ -104,7 +106,22 @@ Menu bawah: **Beranda, Permintaan, Jadwal, Timbang, Riwayat**, ditambah profil m
 | Poin dihitung otomatis oleh sistem dan tidak bisa diubah mitra | FR-M6 | ✅ Selesai |
 | Batas berat 200 kg per setoran untuk mencegah salah catat | Risiko PRD | ✅ Selesai |
 | Riwayat setoran yang diterima | FR-M7 | ✅ Selesai |
-| Koreksi berat yang salah catat | FR-M8 | ⏳ Belum, prioritas Berikutnya |
+| Koreksi berat yang salah catat, dengan alasan, sampai 7 hari setelah timbang. Poin dihitung ulang dengan tarif saat ditimbang | FR-M8 | ✅ Selesai |
+
+### 2.3b Peran Admin perusahaan
+
+Staf perusahaan masuk dengan email `@sirkula.id` dan memilih **Masuk sebagai Perusahaan**. Peran ini hanya tersedia saat aplikasi tersambung ke server.
+
+| Fitur | Kebutuhan PRD | Status |
+| --- | --- | --- |
+| Beranda: berat bulan ini dibanding target, emisi terhindarkan (tCO2e), customer aktif, poin, grafik 6 bulan, dan berat per kelompok | FR-P1 | ✅ Selesai |
+| Mengubah data BSI Ias Toba (alamat, jam buka, kontak, target bulanan) dan mengelola akun petugas mitra | FR-P2 | ✅ Selesai |
+| Memantau setoran dengan pencarian dan filter status | FR-P3 | ✅ Selesai |
+| Mengubah poin per kg, menonaktifkan, atau menambah jenis sampah | FR-P4 | ✅ Selesai |
+| Mengelola katalog hadiah: harga poin, stok, dan tampil/tidak | FR-P5 | ✅ Selesai |
+| Memproses penukaran: kirim dengan nomor resi, lalu tandai selesai | FR-P6 | ✅ Selesai |
+| Laporan per periode, unduh Excel (CSV) atau PDF (halaman siap cetak, pilih "Simpan sebagai PDF") | FR-P7 | ✅ Selesai |
+| Daftar customer dan saldo poinnya | Pelengkap | ✅ Selesai |
 
 ### 2.4 Aturan bisnis yang sudah diterapkan
 
@@ -113,12 +130,26 @@ Menu bawah: **Beranda, Permintaan, Jadwal, Timbang, Riwayat**, ditambah profil m
 - Angka memakai format Indonesia, misalnya `1.204` dan `8,4 kg`.
 - Nomor setoran memakai pola `STR-TTBBHH-NN`, contohnya `STR-261109-01`.
 - Tampilan sudah dicek muat di layar HP selebar 360 px.
+- Poin selalu dihitung server; mitra tidak bisa mengirim angka poin. Tarif poin disimpan saat ditimbang, jadi perubahan tarif tidak mengubah riwayat.
+- Saldo poin tidak boleh minus, termasuk saat koreksi berat menurunkan poin.
 
 ### 2.5 Pemeriksaan otomatis (tes)
 
-Ada **28 tes otomatis** di folder `test/`. Tes ini memeriksa alur penting, misalnya daftar dan masuk, setor sampah, mitra menimbang lalu poin masuk ke customer, penukaran hadiah, dan pembulatan poin.
+Ada tiga kelompok tes otomatis. Hasil terakhir (11 November 2026): **semuanya lulus**.
 
-Hasil terakhir (9 November 2026): **28 dari 28 tes lulus**, dan pemeriksaan kode `flutter analyze` tidak menemukan masalah.
+| Kelompok | Lokasi | Jumlah | Yang diperiksa |
+| --- | --- | --- | --- |
+| Aplikasi HP (mode demo) | `test/` | 30 | Daftar dan masuk, setor, timbang, koreksi berat, poin, penukaran, tampilan 360 px |
+| API Laravel | `backend/tests/` | 28 | Akun, siklus setoran, aturan poin, koreksi berat, admin, laporan dan tautan unduhnya |
+| Ujung ke ujung | `test/e2e_api_test.dart` | 2 | Aplikasi HP memakai server sungguhan: customer setor, mitra timbang dan koreksi, poin masuk, tukar hadiah, admin kirim hadiah dan unduh laporan; daftar dan lupa kata sandi |
+
+Pemeriksaan kode `flutter analyze` tidak menemukan masalah. Tes ujung ke ujung hanya berjalan jika alamat server diberikan:
+
+```bash
+flutter test test/e2e_api_test.dart --dart-define=E2E_API=http://127.0.0.1:8000/api
+```
+
+Gunakan database yang baru di-seed (`php artisan migrate:fresh --seed`), karena tes ini membuat setoran dan penukaran sungguhan.
 
 Sebelumnya ada satu tes yang gagal. Penyebabnya, dua permintaan di data contoh mitra dibuat pada jam tetap, yaitu 08.12 dan 09.40. Jika aplikasi dibuka sebelum jam tersebut, permintaan itu tercatat dibuat di masa depan, sehingga urutan daftar setoran kacau. Sekarang waktunya dihitung mundur dari jam saat aplikasi dibuka.
 
@@ -126,12 +157,11 @@ Sebelumnya ada satu tes yang gagal. Penyebabnya, dua permintaan di data contoh m
 
 | Pekerjaan | Keterangan |
 | --- | --- |
-| ~~API dan basis data (Laravel, MySQL)~~ | ✅ Selesai 11 November 2026, lihat [bagian 8](#8-menjalankan-backend-api-laravel). Laporan PDF, foto timbangan, dan notifikasi push belum |
-| Peran Admin di aplikasi | Kelola data bank sampah, poin per kg, katalog hadiah, proses penukaran, dan laporan PDF/Excel (FR-P1 sampai FR-P8) |
-| Menghubungkan aplikasi HP ke API | Kode data aplikasi sudah dipisahkan agar mudah diganti ke API nanti |
-| Kirim kode verifikasi sungguhan | Saat ini kodenya selalu `123456` |
-| Unggah foto timbangan, notifikasi push, dan angka tCO2e | Angka emisi saat ini hanya perkiraan sementara |
-| Layar splash dan koreksi berat | Prioritas Berikutnya di PRD |
+| Kirim kode verifikasi lewat email atau SMS | Selama uji coba, kode ditampilkan di layar (server dalam mode `APP_DEBUG=true`) |
+| Unggah foto timbangan | Kolom di basis data sudah disiapkan |
+| Notifikasi push (Firebase) | Notifikasi sudah ada di dalam aplikasi, tetapi belum muncul saat aplikasi tertutup |
+| Angka faktor emisi tCO2e yang resmi | Faktor per jenis sampah masih perkiraan sementara |
+| Server online (hosting) | Saat ini server berjalan di laptop, jadi HP harus satu jaringan Wi-Fi |
 | Rilis APK di GitHub | Belum ada versi yang diunggah |
 
 ---
@@ -153,16 +183,16 @@ Urutan pengerjaan sejauh ini:
 | 9. Tes tambahan | 8 Nov 2026 | Ditambah tes untuk akun, jenis sampah rinci, grafik, isian berat, dan tampilan di layar 360 px | `test/customer_extras_test.dart` |
 | 10. Pembaruan dokumen | 9 Nov 2026 | Panduan diperbarui dengan progres, riwayat, dan cara mencoba | Dokumen ini |
 | 11. Perbaikan tes | 9 Nov 2026 | Waktu data contoh mitra diperbaiki agar tidak pernah tercatat di masa depan | Semua 28 tes lulus |
-
-> **Catatan:** pekerjaan tahap 4 sampai 11 **belum di-commit dan di-push ke GitHub**. Jadi, untuk saat ini, yang terlihat di GitHub baru commit pertama. Setelah di-push, riwayatnya bisa dilihat di tab Commits (lihat [bagian 10](#10-memantau-progres-lewat-github)).
+| 12. API Laravel | 11 Nov 2026 | Dibuat API dan basis data MySQL untuk ketiga peran, beserta tes | Folder `backend/`, commit `implementasi backend` |
+| 13. Sambung ke API | 11 Nov 2026 | Aplikasi HP memakai API: masuk, daftar, lupa sandi, setor, timbang, poin, hadiah, notifikasi. Sesi tersimpan, layar splash, dan alamat server bisa diubah. Mode demo tetap ada | `lib/app/api/`, branch `fitur/sambung-api` |
+| 14. Peran Admin | 11 Nov 2026 | Beranda admin, pantau setoran, proses penukaran, kelola jenis sampah, hadiah, bank sampah, petugas, customer, dan laporan Excel/PDF | Folder `lib/admin/` |
+| 15. Koreksi berat | 11 Nov 2026 | Mitra bisa mengoreksi berat yang salah catat; poin customer ikut disesuaikan | FR-M8 selesai, 30 + 28 tes lulus, uji ujung ke ujung lulus |
 
 ### Rencana berikutnya
 
-1. Commit dan push pekerjaan aplikasi HP ke GitHub.
-2. Bangun API Laravel dan basis data MySQL.
-3. Bangun peran Admin perusahaan di aplikasi Flutter.
-4. Hubungkan aplikasi HP ke API.
-5. Uji coba bersama BSI Ias Toba, lalu finalisasi pada Jumat, 20 November 2026.
+1. Gabungkan branch `fitur/sambung-api` ke `main` dan push ke GitHub.
+2. Coba di HP sungguhan lewat Wi-Fi yang sama dengan laptop, lalu buat APK.
+3. Uji coba bersama BSI Ias Toba, lalu finalisasi pada Jumat, 20 November 2026.
 
 ### Susunan folder proyek
 
@@ -170,8 +200,11 @@ Bagian ini untuk yang ingin tahu letak kode. Boleh dilewati.
 
 | Folder atau file | Isi |
 | --- | --- |
-| `lib/main.dart` | Titik awal aplikasi, memilih tampilan customer atau mitra setelah masuk |
-| `lib/app/` | Halaman masuk, daftar, lupa kata sandi, akun contoh, warna, dan format angka |
+| `lib/main.dart` | Titik awal aplikasi, memilih tampilan customer, mitra, atau admin setelah masuk |
+| `lib/app/` | Halaman masuk, daftar, lupa kata sandi, layar splash, akun contoh, warna, dan format angka |
+| `lib/app/api/` | Sambungan ke API Laravel dan pengubah data server menjadi data aplikasi |
+| `lib/admin/` | Semua halaman peran Admin perusahaan |
+| `backend/` | API Laravel (server) |
 | `lib/customer/` | Semua halaman customer (`pages/`), komponen tampilan (`widgets/`), dan data contoh (`data/`) |
 | `lib/partner/` | Semua halaman mitra bank sampah, dengan susunan yang sama |
 | `test/` | Tes otomatis |
@@ -303,6 +336,10 @@ Setelah selesai, buka foldernya di VS Code lewat menu **File → Open Folder**, 
 
    Untuk melihat daftar perangkat yang terdeteksi, jalankan `flutter devices`.
 
+   Aplikasi membutuhkan server Laravel yang sudah berjalan (lihat [bagian 8](#8-menjalankan-backend-api-laravel)). Alamat bawaannya `http://localhost:8000/api` untuk Chrome dan `http://10.0.2.2:8000/api` untuk emulator Android. Untuk HP sungguhan, ketuk tulisan **Server: …** di bawah halaman Masuk, lalu isi IP laptop, misalnya `http://192.168.1.10:8000/api`. Alamat ini tersimpan di HP.
+
+   Untuk mencoba **tanpa server** (data contoh di memori, tanpa peran Admin), tambahkan `--dart-define=DEMO=true`, misalnya `flutter run -d chrome --dart-define=DEMO=true`.
+
 4. Pertama kali dijalankan, prosesnya bisa memakan 2–10 menit. Setelah itu halaman **Masuk** Sirkula akan muncul. Lanjutkan ke [bagian 6](#6-mencoba-aplikasi-akun-contoh-dan-alur-uji).
 
 Saat aplikasi berjalan, Anda bisa menekan tombol berikut di terminal:
@@ -359,16 +396,17 @@ Di halaman Masuk ada tombol akun contoh yang mengisi data secara otomatis. Anda 
 | --- | --- | --- | --- |
 | Customer | `customer1@example.com` | `081200000101` | `sirkula123` |
 | Mitra bank sampah (BSI Ias Toba) | `mitra1@example.com` | `081200000001` | `sirkula123` |
+| Admin perusahaan (pilih **Masuk sebagai Perusahaan**) | `admin@sirkula.id` | `081200000000` | `sirkula123` |
 
 Hal lain yang bisa dicoba:
 
-- **Daftar akun baru:** klik **Daftar sebagai customer** di halaman Masuk. Akun baru selalu berperan customer, dan mulai dengan saldo serta riwayat kosong.
-- **Lupa kata sandi:** klik **Lupa kata sandi?**, masukkan email akun, lalu isi kode verifikasi `123456`.
-- **Akun perusahaan:** email apa pun yang berakhiran `@sirkula.id` saat ini masih diarahkan ke panel admin. Panel web tidak jadi dibuat; staf perusahaan nanti masuk sebagai peran Admin di aplikasi.
+- **Daftar akun baru:** klik **Daftar Disini** di halaman Masuk. Akun baru selalu berperan customer, dan mulai dengan saldo serta riwayat kosong.
+- **Lupa kata sandi:** klik **Lupa Kata Sandi?**, masukkan email akun, lalu isi kode verifikasi yang tampil di kotak kuning (selama uji coba).
+- **Tetap masuk:** tutup lalu buka lagi aplikasi. Layar splash muncul sebentar, lalu Anda langsung masuk tanpa mengisi kata sandi.
 
 ### 6.2 Alur uji satu siklus penuh
 
-Ikuti langkah ini **tanpa menutup aplikasi atau memuat ulang browser**, karena data hanya tersimpan sementara.
+Pastikan server Laravel sudah berjalan. Data tersimpan di server, jadi aplikasi boleh ditutup di tengah jalan. Perubahan dari peran lain muncul paling lambat 30 detik; tarik layar ke bawah atau buka ulang tab untuk melihatnya lebih cepat.
 
 **Sebagai customer**
 
@@ -392,7 +430,13 @@ Ikuti langkah ini **tanpa menutup aplikasi atau memuat ulang browser**, karena d
 12. Masuk lagi dengan akun **Customer**. Saldo poin bertambah, dan ada notifikasi poin masuk.
 13. Buka menu **Hadiah**, pilih hadiah yang terjangkau, isi alamat pengiriman, lalu klik **Tukar Sekarang**. Saldo berkurang, dan penukaran tampil di **Riwayat**.
 
-Coba juga di sisi mitra: **tolak** sebuah permintaan dengan alasan, atau catat timbangan untuk customer yang **datang langsung** dengan mencari nomor ponselnya.
+**Sebagai admin**
+
+14. Masuk dengan akun **Admin** (pilih **Masuk sebagai Perusahaan**).
+15. Buka menu **Penukaran**. Penukaran dari customer tadi muncul. Klik **Kirim Hadiah**, isi nomor resi, lalu **Tandai Selesai**. Customer menerima notifikasi.
+16. Buka **Kelola → Laporan**, pilih periode, lalu unduh **Excel** atau **PDF**.
+
+Coba juga di sisi mitra: **tolak** sebuah permintaan dengan alasan, catat timbangan untuk customer yang **datang langsung** dengan mencari nomor ponselnya, atau buka setoran di **Riwayat** lalu klik **Koreksi Berat**. Di sisi admin, coba ubah **poin per kg** sebuah jenis sampah, lalu lihat estimasi poin di aplikasi customer ikut berubah.
 
 ---
 
@@ -420,8 +464,6 @@ flutter run -d chrome
 
 API ada di folder `backend/`. Laravel hanya dipakai untuk backend, tanpa halaman web. Daftar lengkap endpoint ada di [backend/README.md](../backend/README.md).
 
-> Aplikasi Flutter **belum** memakai API ini. Sambungannya dikerjakan di tahap berikutnya.
-
 Backend membutuhkan program tambahan:
 
 | Program | Fungsi | Cara termudah memasang |
@@ -440,6 +482,10 @@ Langkahnya:
 5. Salin pengaturan: `copy .env.example .env`, lalu buat kunci: `php artisan key:generate`. Pengaturan bawaan sudah memakai MySQL Laragon (user `root` tanpa kata sandi).
 6. Buat tabel dan data contoh: `php artisan migrate:fresh --seed`.
 7. Jalankan server: `php artisan serve --host=0.0.0.0 --port=8000`. API bisa dicoba di `http://localhost:8000/api`.
+
+Jika database sudah pernah dibuat sebelumnya, jalankan `php artisan migrate` setiap kali mengambil versi terbaru, agar tabel baru (misalnya kolom koreksi berat) ikut dibuat. Data yang sudah ada tidak terhapus.
+
+> **Server terasa lambat (sekitar 1 detik per permintaan)?** OPcache PHP Laragon belum aktif. Buka **Laragon → PHP → php.ini**, cari baris `;zend_extension=opcache`, hapus tanda `;` di depannya, tambahkan `opcache.enable_cli=1`, simpan, lalu jalankan ulang `php artisan serve`.
 
 Akun contoh sama dengan aplikasi HP (kata sandi `sirkula123`), ditambah akun admin `admin@sirkula.id`.
 
@@ -460,8 +506,10 @@ Akun contoh sama dengan aplikasi HP (kata sandi `sirkula123`), ditambah akun adm
 | Muncul error `pub get failed` | Koneksi internet bermasalah | Periksa internet, lalu ulangi `flutter pub get` |
 | `Building with plugins requires symlink support` | Mode pengembang Windows belum aktif | Buka **Settings → System → For developers**, aktifkan **Developer Mode** |
 | Proses `flutter run` sangat lama | Normal saat pertama kali | Tunggu sampai selesai. Jalankan berikutnya akan jauh lebih cepat |
-| Kata sandi ditolak | Salah ketik, atau akun baru hilang setelah aplikasi dimuat ulang | Gunakan akun contoh di bagian 6.1, atau daftar ulang |
-| Setoran atau poin yang tadi dibuat hilang | Data hanya tersimpan sementara | Normal untuk saat ini. Ulangi alur tanpa menutup aplikasi |
+| Kata sandi ditolak | Salah ketik, atau data server di-reset dengan `migrate:fresh` | Gunakan akun contoh di bagian 6.1, atau daftar ulang |
+| "Tidak bisa terhubung ke server" saat masuk | Server Laravel belum berjalan, atau alamat server salah | Jalankan server (bagian 8). Di HP, ketuk **Server: …** di halaman Masuk dan isi IP laptop. HP dan laptop harus satu Wi-Fi, dan server dijalankan dengan `--host=0.0.0.0` |
+| Setoran atau poin yang tadi dibuat hilang | Aplikasi berjalan dalam mode demo (`DEMO=true`) | Jalankan tanpa `--dart-define=DEMO=true` agar data tersimpan di server |
+| Tombol PDF laporan tidak membuka apa-apa | Peramban memblokir jendela baru, atau tautan sudah lewat 10 menit | Izinkan pop-up, lalu tekan tombol PDF lagi |
 | `build\web belum ada` saat menjalankan `serve_web.py` | Versi web belum dibangun | Jalankan `flutter build web` terlebih dahulu |
 | Ada error aneh setelah `git pull` | Sisa hasil build lama | Jalankan `flutter clean`, lalu `flutter pub get`, dan coba lagi |
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/api/api_client.dart';
 import '../../app/theme.dart';
 import '../data/models.dart';
 
@@ -473,5 +474,20 @@ class EmptyState extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Menjalankan aksi yang mungkin memanggil server. Jika gagal, pesan galat
+/// ditampilkan di SnackBar dan hasilnya null.
+Future<T?> runAction<T>(
+  BuildContext context,
+  Future<T> Function() action,
+) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  try {
+    return await action();
+  } on ApiException catch (e) {
+    messenger?.showSnackBar(SnackBar(content: Text(e.message)));
+    return null;
   }
 }

@@ -14,6 +14,7 @@ class WasteTypeResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'group' => $this->whenLoaded('group', fn () => $this->group->code),
+            'group_id' => $this->waste_group_id,
             'group_name' => $this->whenLoaded('group', fn () => $this->group->name),
             'name' => $this->name,
             'examples' => $this->examples,

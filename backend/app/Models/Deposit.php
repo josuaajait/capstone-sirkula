@@ -14,7 +14,7 @@ class Deposit extends Model
         'method', 'status', 'is_walk_in', 'pickup_date', 'pickup_slot', 'address',
         'note', 'vehicle_id', 'accepted_at', 'departed_at', 'weighed_kg',
         'points_per_kg', 'points_earned', 'weighed_at', 'weighed_by', 'weigh_note',
-        'weigh_photo_path', 'rejected_at', 'reject_reason', 'created_at',
+        'weigh_photo_path', 'original_weighed_kg', 'corrected_at', 'correction_reason', 'rejected_at', 'reject_reason', 'created_at',
     ];
 
     protected function casts(): array
@@ -31,6 +31,8 @@ class Deposit extends Model
             'accepted_at' => 'datetime',
             'departed_at' => 'datetime',
             'weighed_at' => 'datetime',
+            'corrected_at' => 'datetime',
+            'original_weighed_kg' => 'float',
             'rejected_at' => 'datetime',
         ];
     }

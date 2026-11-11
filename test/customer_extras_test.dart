@@ -93,7 +93,7 @@ void main() {
 
     test('ganti kata sandi akun demo', () {
       final a = findAccount('customer1@example.com')!;
-      resetPassword(a, 'baru12345');
+      resetAccountPassword(a, 'baru12345');
       expect(authenticate(a.email, DemoAccount.password), isNull);
       expect(authenticate(a.email, 'baru12345'), isNotNull);
     });

@@ -255,7 +255,7 @@ class _TargetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final kg = store.kgThisMonth;
-    final target = PartnerStore.monthlyTargetKg;
+    final target = store.monthlyTargetKg;
     final left = (target - kg).clamp(0.0, target);
     final progress = store.targetProgress;
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;

@@ -64,9 +64,19 @@ class _WeighPageState extends State<WeighPage> {
     _search.clear();
   });
 
-  void _findCustomer() {
+  Future<void> _findCustomer() async {
     final store = PartnerScope.read(context);
-    final c = store.findCustomer(_search.text);
+    final query = _search.text;
+    if (query.trim().isEmpty) {
+      setState(() => _searchError = 'Isi nomor ponsel atau ID customer.');
+      return;
+    }
+    final found = await runAction(
+      context,
+      () async => (await store.lookupCustomer(query),),
+    );
+    if (found == null || !mounted) return;
+    final c = found.$1;
     setState(() {
       _request = null;
       _customer = c;
@@ -110,13 +120,17 @@ class _WeighPageState extends State<WeighPage> {
       ),
     );
     if (ok != true || !mounted) return;
-    final saved = store.recordWeighing(
-      request: _request,
-      customer: _customer!,
-      type: _type,
-      kg: kg,
-      note: _note.text,
+    final saved = await runAction(
+      context,
+      () => store.recordWeighing(
+        request: _request,
+        customer: _customer!,
+        type: _type,
+        kg: kg,
+        note: _note.text,
+      ),
     );
+    if (saved == null || !mounted) return;
     setState(() => _saved = saved);
   }
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../customer/data/customer_store.dart';
 import '../customer/widgets/common.dart';
 import 'auth_background.dart';
+import 'auth_service.dart';
 import 'forgot_password_page.dart';
 import 'register_page.dart';
 import 'session.dart';
@@ -21,6 +21,7 @@ enum LoginAs {
   static LoginAs of(UserRole role) => switch (role) {
     UserRole.customer => LoginAs.customer,
     UserRole.partner => LoginAs.partner,
+    UserRole.admin => LoginAs.company,
   };
 }
 
@@ -29,7 +30,8 @@ enum LoginAs {
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.onLogin});
 
-  final ValueChanged<UserRole> onLogin;
+  /// Dipanggil setelah akun cocok; galat yang dilempar ditampilkan di sini.
+  final Future<void> Function(SignedIn account) onLogin;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -43,6 +45,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscure = true;
   String? _error;
   String? _info;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -51,52 +54,53 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_busy) return;
     setState(() {
       _error = null;
       _info = null;
     });
     if (!_formKey.currentState!.validate()) return;
-    if (_as == LoginAs.company || isCompanyEmail(_id.text)) {
-      setState(
-        () => _error =
-            'Peran Admin untuk staf perusahaan sedang disiapkan di aplikasi.',
-      );
-      return;
+    final auth = AppServices.of(context).auth;
+    setState(() => _busy = true);
+    try {
+      final account = await auth.login(_id.text, _password.text);
+      final role = LoginAs.of(account.role);
+      if (role != _as) {
+        await auth.logout();
+        _fail(
+          'Akun ini terdaftar sebagai ${role.label}. Pilih "Masuk sebagai ${role.label}".',
+        );
+        return;
+      }
+      await widget.onLogin(account);
+    } on AuthException catch (e) {
+      _fail(e.message);
+    } on Exception catch (e) {
+      await auth.logout();
+      _fail('$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    final account = authenticate(_id.text, _password.text);
-    if (account == null) {
-      setState(() => _error = 'Nomor ponsel/email atau kata sandi salah.');
-      return;
-    }
-    final role = LoginAs.of(account.role);
-    if (role != _as) {
-      setState(
-        () => _error =
-            'Akun ini terdaftar sebagai ${role.label}. Pilih "Masuk sebagai ${role.label}".',
-      );
-      return;
-    }
-    _enter(account);
   }
 
-  void _enter(DemoAccount account) {
-    if (account.role == UserRole.customer) {
-      CustomerScope.read(context).signInAs(
-        email: account.email,
-        name: account.label,
-        phone: account.phone,
-        address: account.address,
-      );
-    }
-    widget.onLogin(account.role);
+  void _fail(String message) {
+    if (mounted) setState(() => _error = message);
   }
 
   Future<void> _register() async {
-    final account = await Navigator.of(context).push<DemoAccount>(
-      MaterialPageRoute(builder: (_) => const RegisterPage()),
-    );
-    if (account != null && mounted) _enter(account);
+    final account = await Navigator.of(
+      context,
+    ).push<SignedIn>(MaterialPageRoute(builder: (_) => const RegisterPage()));
+    if (account == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onLogin(account);
+    } on Exception catch (e) {
+      _fail('$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _forgot() async {
@@ -151,6 +155,20 @@ class _LoginPageState extends State<LoginPage> {
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 11, color: AppColors.muted),
                       ),
+                      if (AppServices.of(context).api case final api?)
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: _editServer,
+                            icon: const Icon(Icons.dns_outlined, size: 16),
+                            label: Text(
+                              'Server: ${api.baseUrl}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.muted,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -259,7 +277,7 @@ class _LoginPageState extends State<LoginPage> {
                 ],
                 const SizedBox(height: 18),
                 FilledButton(
-                  onPressed: _submit,
+                  onPressed: _busy ? null : _submit,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.emeraldDeep,
                     foregroundColor: Colors.white,
@@ -273,7 +291,16 @@ class _LoginPageState extends State<LoginPage> {
                       letterSpacing: 1.2,
                     ),
                   ),
-                  child: const Text('MASUK'),
+                  child: _busy
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : const Text('MASUK'),
                 ),
                 const SizedBox(height: 6),
                 Center(
@@ -340,7 +367,60 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  /// Ubah alamat server, misalnya IP laptop saat mencoba di HP.
+  Future<void> _editServer() async {
+    final services = AppServices.of(context);
+    final api = services.api!;
+    final controller = TextEditingController(text: api.baseUrl);
+    final url = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alamat server'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Contoh: http://192.168.1.10:8000/api (IP laptop yang menjalankan Laravel).',
+              style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.url,
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (url == null || url.trim().isEmpty || !mounted) return;
+    setState(() => api.baseUrl = url);
+    await services.storage?.saveApiUrl(api.baseUrl);
+  }
+
   Widget _demoAccounts() {
+    final accounts = [
+      ...demoAccounts,
+      // Akun admin hanya ada di server.
+      if (AppServices.of(context).auth.isRemote)
+        const DemoAccount(
+          role: UserRole.admin,
+          label: 'Admin',
+          email: 'admin@sirkula.id',
+          phone: 'admin@sirkula.id',
+        ),
+    ];
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       decoration: BoxDecoration(
@@ -363,8 +443,8 @@ class _LoginPageState extends State<LoginPage> {
           const SizedBox(height: 8),
           Row(
             children: [
-              for (final a in demoAccounts) ...[
-                if (a != demoAccounts.first) const SizedBox(width: 10),
+              for (final a in accounts) ...[
+                if (a != accounts.first) const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _fill(a),

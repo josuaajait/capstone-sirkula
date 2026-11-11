@@ -205,17 +205,22 @@ Future<bool> acceptRequest(BuildContext context, Deposit d) async {
         ],
       ),
     );
-    if (ok != true || !store.accept(d)) return false;
+    if (ok != true || !context.mounted) return false;
+    final accepted = await runAction(context, () => store.accept(d));
+    if (accepted != true) return false;
   } else {
     final result = await showScheduleSheet(context, d, accepting: true);
-    if (result == null) return false;
-    final accepted = store.accept(
-      d,
-      date: result.date,
-      slot: result.slot,
-      vehicle: result.vehicle,
+    if (result == null || !context.mounted) return false;
+    final accepted = await runAction(
+      context,
+      () => store.accept(
+        d,
+        date: result.date,
+        slot: result.slot,
+        vehicle: result.vehicle,
+      ),
     );
-    if (!accepted) return false;
+    if (accepted != true) return false;
   }
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -413,7 +418,9 @@ Future<bool> rejectRequest(BuildContext context, Deposit d) async {
     backgroundColor: AppColors.white,
     builder: (_) => _RejectSheet(deposit: d),
   );
-  if (reason == null || !store.reject(d, reason)) return false;
+  if (reason == null || !context.mounted) return false;
+  final rejected = await runAction(context, () => store.reject(d, reason));
+  if (rejected != true) return false;
   if (context.mounted) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('${d.id} ditolak.')));

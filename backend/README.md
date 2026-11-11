@@ -108,6 +108,7 @@ Data contoh (riwayat setoran, saldo, permintaan baru) hanya dibuat jika `APP_ENV
 | POST | `/deposits/{kode}/reschedule` | Ubah `pickup_date`, `pickup_slot`, `vehicle_id` |
 | POST | `/deposits/{kode}/depart` | Berangkat menjemput |
 | POST | `/deposits/{kode}/weigh` | Catat timbangan: `waste_type_id`, `weighed_kg`, `note`. Poin dihitung server |
+| POST | `/deposits/{kode}/correct` | Koreksi berat (FR-M8): `weighed_kg`, `reason`. Hanya setoran terverifikasi, paling lama 7 hari setelah timbang. Selisih poin dikredit atau didebit; saldo tidak boleh minus |
 | POST | `/deposits/walk-in` | Customer datang langsung: `customer_id`, `waste_type_id`, `weighed_kg` |
 | GET | `/customers/find?q=` | Cari customer lewat ID (`CST-0001`) atau nomor ponsel |
 | GET/POST | `/vehicles` | Daftar dan tambah kendaraan (`type`, `plate`) |
@@ -132,6 +133,7 @@ Data contoh (riwayat setoran, saldo, permintaan baru) hanya dibuat jika `APP_ENV
 | POST | `/redemptions/{kode}/complete` | Tandai selesai |
 | GET | `/reports?from=&to=` | Laporan JSON |
 | GET | `/reports/export.csv?from=&to=` | Unduh laporan untuk Excel |
+| GET | `/reports/link?from=&to=&format=csv\|pdf` | Tautan unduh bertanda tangan (berlaku 10 menit) yang bisa dibuka di peramban tanpa token. `pdf` membuka halaman siap cetak |
 
 ## Aturan bisnis yang dijaga server
 
@@ -144,7 +146,6 @@ Data contoh (riwayat setoran, saldo, permintaan baru) hanya dibuat jika `APP_ENV
 
 ## Belum dikerjakan
 
-- Unduhan laporan PDF (Excel/CSV sudah ada).
 - Pengiriman kode lupa kata sandi lewat email atau SMS.
 - Unggah foto timbangan (kolom `weigh_photo_path` sudah disiapkan).
 - Notifikasi push (Firebase); saat ini notifikasi tersimpan dan dibaca lewat `/notifications`.

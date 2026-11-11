@@ -190,12 +190,15 @@ class _PickupCard extends StatelessWidget {
                       d,
                       accepting: false,
                     );
-                    if (r == null) return;
-                    store.reschedule(
-                      d,
-                      date: r.date,
-                      slot: r.slot,
-                      vehicle: r.vehicle,
+                    if (r == null || !context.mounted) return;
+                    await runAction(
+                      context,
+                      () => store.reschedule(
+                        d,
+                        date: r.date,
+                        slot: r.slot,
+                        vehicle: r.vehicle,
+                      ),
                     );
                   },
                   child: const Text('Ubah Jadwal'),
@@ -210,7 +213,7 @@ class _PickupCard extends StatelessWidget {
                           PartnerTab.weigh,
                           weigh: d,
                         )
-                      : () => store.depart(d),
+                      : () => runAction(context, () => store.depart(d)),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                   ),
@@ -345,6 +348,8 @@ class _VehiclesCard extends StatelessWidget {
     );
     // Controller tidak di-dispose di sini karena dialog masih beranimasi
     // menutup; keduanya dibersihkan GC.
-    if (ok == true) store.addVehicle(type.text, plate.text);
+    if (ok == true && context.mounted) {
+      await runAction(context, () => store.addVehicle(type.text, plate.text));
+    }
   }
 }

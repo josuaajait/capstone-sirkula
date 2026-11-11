@@ -1,3 +1,4 @@
+import 'package:capstone/app/api/api_client.dart';
 import 'package:capstone/app/format.dart';
 import 'package:capstone/app/session.dart';
 import 'package:capstone/customer/data/customer_store.dart';
@@ -30,11 +31,11 @@ Future<(CustomerStore, PartnerStore)> pumpBoth(
 
 void main() {
   group('PartnerStore', () {
-    test('permintaan customer sampai ke mitra lalu poin masuk', () {
+    test('permintaan customer sampai ke mitra lalu poin masuk', () async {
       final customer = CustomerStore();
       final partner = PartnerStore(customer);
       final before = partner.requests.length;
-      final d = customer.submitDeposit(
+      final d = await customer.submitDeposit(
         partner: customer.partner,
         type: WasteType.plastik,
         estimatedKg: 5,
@@ -46,20 +47,20 @@ void main() {
       expect(partner.requests.length, before + 1);
       expect(partner.notifications.first.title, 'Permintaan setoran baru');
 
-      expect(partner.accept(d, vehicle: partner.vehicles.first), isTrue);
+      expect(await partner.accept(d, vehicle: partner.vehicles.first), isTrue);
       expect(d.status, DepositStatus.scheduled);
       final notifCount = customer.notifications.length;
-      expect(partner.accept(d), isFalse); // ketukan ganda tidak diproses
-      expect(partner.reject(d, 'x'), isFalse);
+      expect(await partner.accept(d), isFalse); // ketukan ganda tidak diproses
+      expect(await partner.reject(d, 'x'), isFalse);
       expect(customer.notifications.length, notifCount);
       expect(d.vehicle, 'Pikap · B 9124 KX');
       expect(customer.notifications.first.title, 'Jadwal jemput dikonfirmasi');
 
-      partner.depart(d);
+      await partner.depart(d);
       expect(d.status, DepositStatus.onTheWay);
 
       final pointsBefore = customer.points;
-      partner.recordWeighing(
+      await partner.recordWeighing(
         request: d,
         customer: d.customer,
         type: WasteType.plastik,
@@ -71,7 +72,7 @@ void main() {
       expect(d.timeline.every((s) => s.done), isTrue);
     });
 
-    test('setoran datang langsung dan cari customer', () {
+    test('setoran datang langsung dan cari customer', () async {
       final partner = PartnerStore(CustomerStore());
       final c2 = partner.findCustomer('0812 0000 0102')!;
       expect(c2.name, 'Customer 2');
@@ -79,7 +80,7 @@ void main() {
       expect(partner.findCustomer('0899'), isNull);
 
       final balance = partner.balanceOf(c2);
-      final d = partner.recordWeighing(
+      final d = await partner.recordWeighing(
         customer: c2,
         type: WasteType.kaleng,
         kg: 1.25,
@@ -87,7 +88,7 @@ void main() {
       expect(d.earnedPoints, WasteType.kaleng.pointsFor(1.3));
       expect(partner.balanceOf(c2), balance + d.earnedPoints!);
       expect(partner.deposits.first.id, d.id);
-      expect(
+      await expectLater(
         () => partner.recordWeighing(
           customer: c2,
           type: WasteType.kaca,
@@ -97,13 +98,46 @@ void main() {
       );
     });
 
-    test('tolak permintaan menyimpan alasan', () {
+    test('tolak permintaan menyimpan alasan', () async {
       final partner = PartnerStore(CustomerStore());
       final d = partner.requests.first;
-      partner.reject(d, rejectReasons.first);
+      await partner.reject(d, rejectReasons.first);
       expect(d.status, DepositStatus.rejected);
       expect(d.rejectReason, rejectReasons.first);
       expect(partner.requests.contains(d), isFalse);
+    });
+
+    test('koreksi berat menyesuaikan poin dengan tarif lama', () async {
+      final customer = CustomerStore();
+      final partner = PartnerStore(customer);
+      final me = customer.profile;
+      final d = await partner.recordWeighing(
+        customer: me,
+        type: WasteType.petBening,
+        kg: 8.4,
+      );
+      final balance = customer.points;
+      expect(d.canCorrect, isTrue);
+
+      WasteType.petBening.pointsPerKg = 999; // tarif berubah setelah timbang
+      addTearDown(WasteType.resetToDefaults);
+      await partner.correctWeight(d, 4.8, 'Salah ketik angka');
+      expect(d.weighedKg, 4.8);
+      expect(d.originalWeighedKg, 8.4);
+      expect(d.earnedPoints, 2400);
+      expect(customer.points, balance - 1800);
+      expect(customer.notifications.first.title, 'Berat setoran dikoreksi');
+
+      // Tidak boleh membuat saldo negatif.
+      customer.points = 0;
+      await expectLater(
+        partner.correctWeight(d, 0.1, 'Salah ketik lagi'),
+        throwsA(isA<ApiException>()),
+      );
+      expect(d.weighedKg, 4.8);
+
+      d.weighedAt = DateTime.now().subtract(const Duration(days: 8));
+      expect(d.canCorrect, isFalse);
     });
   });
 
@@ -224,18 +258,18 @@ void main() {
       expect(WasteType.kaca.pointsFor(0.15), 15);
     });
 
-    test('penukaran memotong saldo dan menolak saldo kurang', () {
+    test('penukaran memotong saldo dan menolak saldo kurang', () async {
       final store = CustomerStore();
       final bibit = store.rewards.firstWhere((r) => r.points == 18000);
       final sembako = store.rewards.firstWhere((r) => r.points == 72000);
-      expect(store.redeem(sembako, 'Jl. Contoh No. 1'), isNull);
-      expect(store.redeem(bibit, 'Jl. Contoh No. 1'), isNotNull);
+      expect(await store.redeem(sembako, 'Jl. Contoh No. 1'), isNull);
+      expect(await store.redeem(bibit, 'Jl. Contoh No. 1'), isNotNull);
       expect(store.points, 24500 - 18000);
     });
 
-    test('setoran baru menunggu mitra dan masuk riwayat', () {
+    test('setoran baru menunggu mitra dan masuk riwayat', () async {
       final store = CustomerStore();
-      final d = store.submitDeposit(
+      final d = await store.submitDeposit(
         partner: store.partner,
         type: WasteType.kertas,
         estimatedKg: 3,

@@ -157,6 +157,12 @@ class _WeighProof extends StatelessWidget {
             ),
           if (d.weighNote != null && d.weighNote!.isNotEmpty)
             InfoRow('Catatan mitra', d.weighNote!),
+          if (d.originalWeighedKg != null)
+            InfoRow(
+              'Dikoreksi dari',
+              '${formatKg(d.originalWeighedKg!)} · ${d.correctionReason ?? '-'}',
+              valueColor: AppColors.amberDeep,
+            ),
         ],
       ),
     );

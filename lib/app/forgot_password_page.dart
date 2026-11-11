@@ -24,9 +24,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _code = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
-  DemoAccount? _account;
+
+  /// Email/nomor yang sudah dikirimi kode; null selama langkah pertama.
+  String? _account;
+
+  /// Kode yang dikembalikan server dalam mode debug atau mode demo.
+  String? _hintCode;
   String? _error;
   bool _obscure = true;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -36,7 +42,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     super.dispose();
   }
 
-  void _sendCode() {
+  Future<void> _sendCode() async {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
     if (isCompanyEmail(_id.text)) {
@@ -45,27 +51,43 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       );
       return;
     }
-    final account = findAccount(_id.text);
-    if (account == null) {
-      setState(() => _error = 'Akun dengan email/nomor ini tidak ditemukan.');
-      return;
-    }
-    setState(() => _account = account);
+    await _run(() async {
+      final code = await AppServices.of(context).auth.requestReset(_id.text);
+      setState(() {
+        _account = _id.text.trim();
+        _hintCode = code;
+      });
+    });
   }
 
-  void _reset() {
+  Future<void> _reset() async {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
-    if (_code.text.trim() != demoResetCode) {
-      setState(() => _error = 'Kode verifikasi salah.');
-      return;
-    }
-    resetPassword(_account!, _password.text);
-    Navigator.of(context).pop(_account!.email);
+    await _run(() async {
+      await AppServices.of(context).auth
+          .resetPassword(_account!, _code.text, _password.text);
+      if (mounted) Navigator.of(context).pop(_account);
+    });
   }
 
-  String _mask(DemoAccount a) {
-    final p = a.phone;
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+    } on Exception catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  String _mask(String id) {
+    if (id.contains('@')) {
+      final [name, domain] = id.split('@');
+      return '${name.substring(0, name.length.clamp(0, 2))}•••@$domain';
+    }
+    final p = id.replaceAll(RegExp(r'\D'), '');
     return p.length < 6
         ? p
         : '${p.substring(0, 4)}${'•' * (p.length - 6)}${p.substring(p.length - 2)}';
@@ -117,21 +139,22 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   : null,
                             ),
                           ] else ...[
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.amberSoft,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'Mode demo: kode verifikasi adalah $demoResetCode.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.amberDeep,
+                            if (_hintCode != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.amberSoft,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'Mode uji coba: kode verifikasi adalah $_hintCode.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.amberDeep,
+                                  ),
                                 ),
                               ),
-                            ),
                             const SizedBox(height: 16),
                             const FieldLabel('Kode verifikasi'),
                             TextFormField(
@@ -199,7 +222,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ],
                           const SizedBox(height: 18),
                           FilledButton(
-                            onPressed: account == null ? _sendCode : _reset,
+                            onPressed: _busy
+                                ? null
+                                : account == null
+                                ? _sendCode
+                                : _reset,
                             child: Text(
                               account == null
                                   ? 'Kirim Kode'

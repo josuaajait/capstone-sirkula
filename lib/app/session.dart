@@ -1,9 +1,14 @@
 import 'package:flutter/widgets.dart';
 
-/// Peran yang bisa masuk ke aplikasi HP. Peran Admin perusahaan menyusul.
-enum UserRole { customer, partner }
+import 'api/api_client.dart';
+import 'app_config.dart';
+import 'auth_service.dart';
 
-/// Akun contoh selama backend belum ada. Peran terikat ke akun (FR-A3),
+/// Peran yang bisa masuk ke aplikasi HP. Admin adalah staf perusahaan
+/// Sirkula; perannya hanya tersedia saat tersambung ke server.
+enum UserRole { customer, partner, admin }
+
+/// Akun contoh untuk mode demo tanpa server. Peran terikat ke akun (FR-A3),
 /// bukan dipilih bebas saat masuk.
 class DemoAccount {
   const DemoAccount({
@@ -41,7 +46,7 @@ const demoAccounts = [
   ),
 ];
 
-/// Email yang dikenali sebagai staf perusahaan (peran Admin, menyusul).
+/// Email yang dikenali sebagai staf perusahaan (peran Admin).
 bool isCompanyEmail(String input) =>
     input.trim().toLowerCase().endsWith('@sirkula.id');
 
@@ -121,7 +126,7 @@ String? registerCustomer({
 }
 
 /// Mengganti kata sandi setelah kode verifikasi benar (FR-A5).
-void resetPassword(DemoAccount account, String newPassword) {
+void resetAccountPassword(DemoAccount account, String newPassword) {
   _passwords[account.email] = newPassword;
 }
 
@@ -153,4 +158,28 @@ class AppSession extends InheritedWidget {
 
   @override
   bool updateShouldNotify(AppSession oldWidget) => role != oldWidget.role;
+}
+
+/// Layanan yang dipakai halaman akun: [AuthService], klien API, dan
+/// penyimpanan sesi.
+class AppServices extends InheritedWidget {
+  const AppServices({
+    super.key,
+    required this.auth,
+    this.api,
+    this.storage,
+    required super.child,
+  });
+
+  final AuthService auth;
+  final ApiClient? api;
+  final SessionStorage? storage;
+
+  static AppServices of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<AppServices>() ??
+      const AppServices(auth: DemoAuthService(), child: SizedBox.shrink());
+
+  @override
+  bool updateShouldNotify(AppServices oldWidget) =>
+      auth != oldWidget.auth || api != oldWidget.api;
 }

@@ -10,11 +10,15 @@ use App\Support\Stats;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Laporan berat, tCO2e, customer aktif, poin, dan penukaran (FR-P7).
- * Unduhan Excel memakai CSV yang langsung terbuka di Excel; PDF menyusul.
+ * Unduhan Excel memakai CSV yang langsung terbuka di Excel. PDF dibuat dari
+ * halaman siap cetak: peramban membuka dialog cetak, lalu pilih "Simpan
+ * sebagai PDF".
  */
 class ReportController extends Controller
 {
@@ -23,6 +27,42 @@ class ReportController extends Controller
         [$from, $to] = $this->range($request);
 
         return response()->json($this->build($from, $to));
+    }
+
+    /**
+     * Tautan unduhan bertanda tangan yang berlaku 10 menit. Alamatnya memakai
+     * host yang dipakai aplikasi (misalnya IP laptop), bukan APP_URL.
+     */
+    public function link(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'format' => ['required', 'in:csv,pdf'],
+        ]);
+        $path = URL::temporarySignedRoute(
+            $data['format'] === 'csv' ? 'reports.csv' : 'reports.print',
+            now()->addMinutes(10),
+            array_filter(['from' => $data['from'] ?? null, 'to' => $data['to'] ?? null]),
+            absolute: false,
+        );
+
+        return response()->json(['url' => $request->root().$path, 'expires_in' => 600]);
+    }
+
+    /** Halaman laporan siap cetak atau disimpan sebagai PDF. */
+    public function printable(Request $request): View
+    {
+        [$from, $to] = $this->range($request);
+
+        return view('report', [
+            'report' => $this->build($from, $to),
+            'deposits' => Stats::verified()
+                ->whereBetween('weighed_at', [$from, $to])
+                ->with(['customer', 'wasteType'])
+                ->orderBy('weighed_at')
+                ->get(),
+        ]);
     }
 
     public function exportCsv(Request $request): StreamedResponse
