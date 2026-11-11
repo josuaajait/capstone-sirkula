@@ -43,8 +43,7 @@ enum CustomerTab {
 
 /// Pilihan awal untuk halaman Setor Sampah saat dibuka dari halaman lain.
 class DepositPreset {
-  const DepositPreset({this.partner, this.method});
-  final Partner? partner;
+  const DepositPreset({this.method});
   final DepositMethod? method;
 }
 

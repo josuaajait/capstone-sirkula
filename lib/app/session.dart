@@ -35,7 +35,7 @@ const demoAccounts = [
   ),
   DemoAccount(
     role: UserRole.partner,
-    label: 'Mitra 1',
+    label: 'BSI Ias Toba',
     email: 'mitra1@example.com',
     phone: '081200000001',
   ),

@@ -19,9 +19,6 @@ String formatKg(double kg) {
   return '${text.replaceAll('.', ',')} kg';
 }
 
-String formatKm(double km) =>
-    '${km.toStringAsFixed(1).replaceAll('.', ',')} km';
-
 /// Poin dengan tanda, misalnya +4.200 atau -10.000.
 String formatSignedPoints(int value) =>
     value >= 0 ? '+${formatNumber(value)}' : formatNumber(value);

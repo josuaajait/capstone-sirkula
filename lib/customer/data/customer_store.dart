@@ -18,35 +18,18 @@ class CustomerStore extends ChangeNotifier {
   /// tCO2e belum ditetapkan, jadi angka ini hanya placeholder.
   static const co2PerKg = 1.5;
 
-  final partners = const [
-    Partner(
-      id: 'M1',
-      name: 'Mitra 1',
-      initials: 'M1',
-      distanceKm: 1.2,
-      address: 'Jl. Contoh Industri No. 1',
-      area: 'Jakarta Selatan',
-      hours: 'Senin–Sabtu, 08.00–17.00',
-    ),
-    Partner(
-      id: 'M2',
-      name: 'Mitra 2',
-      initials: 'M2',
-      distanceKm: 2.4,
-      address: 'Jl. Hijau Raya No. 8',
-      area: 'Jakarta Selatan',
-      hours: 'Senin–Jumat, 08.00–16.00',
-    ),
-    Partner(
-      id: 'M3',
-      name: 'Mitra 3',
-      initials: 'M3',
-      distanceKm: 3.1,
-      address: 'Jl. Bersih Utama No. 12',
-      area: 'Jakarta Selatan',
-      hours: 'Setiap hari, 07.00–15.00',
-    ),
-  ];
+  /// Satu-satunya bank sampah yang dilayani Sirkula. Alamat lengkap dan jam
+  /// buka di bawah masih contoh; ganti setelah dikonfirmasi pengelola.
+  static const bankSampah = Partner(
+    id: 'BSI-IAS-TOBA',
+    name: 'BSI Ias Toba',
+    initials: 'BI',
+    address: 'Kabupaten Toba',
+    area: 'Sumatera Utara',
+    hours: 'Senin–Sabtu, 08.00–17.00',
+  );
+
+  Partner get partner => bankSampah;
 
   final rewards = const [
     Reward(
@@ -92,7 +75,6 @@ class CustomerStore extends ChangeNotifier {
   final List<Deposit> deposits = [];
   final List<Redemption> redemptions = [];
   final List<AppNotification> notifications = [];
-  Partner? preferredPartner;
 
   int _depositSeq = 2;
   int _redeemSeq = 8;
@@ -221,7 +203,6 @@ class CustomerStore extends ChangeNotifier {
     required String phone,
     required String email,
     required String address,
-    Partner? preferred,
   }) {
     profile
       ..name = name
@@ -229,7 +210,6 @@ class CustomerStore extends ChangeNotifier {
       ..email = email
       ..address = address
       ..initials = _initials(name);
-    preferredPartner = preferred;
     notifyListeners();
   }
 
@@ -283,7 +263,6 @@ class CustomerStore extends ChangeNotifier {
     deposits.clear();
     redemptions.clear();
     notifications.clear();
-    preferredPartner = null;
     if (email == demoEmail) {
       points = 24500;
       _depositSeq = 2;
@@ -304,7 +283,7 @@ class CustomerStore extends ChangeNotifier {
       notifications.add(
         AppNotification(
           'Selamat datang di Sirkula',
-          'Pilih bank sampah mitra terdekat, lalu setor sampah pertama Anda untuk mendapat poin.',
+          'Setor sampah pertama Anda ke BSI Ias Toba untuk mendapat poin.',
           DateTime.now(),
         ),
       );
@@ -334,7 +313,7 @@ class CustomerStore extends ChangeNotifier {
       initials: 'C1',
       phone: '+62 812 0000 0101',
       email: 'customer1@example.com',
-      address: 'Jl. Customer Hijau No. 10, Jakarta Selatan',
+      address: 'Jl. Customer Hijau No. 10, Balige',
       tier: 'Member Hijau',
     );
 
@@ -343,7 +322,7 @@ class CustomerStore extends ChangeNotifier {
       Deposit(
         id: 'STR-${_yymmdd(daysAgo(1))}-02',
         customer: profile,
-        partner: partners[0],
+        partner: bankSampah,
         type: WasteType.plastik,
         estimatedKg: 8,
         method: DepositMethod.pickup,
@@ -351,7 +330,7 @@ class CustomerStore extends ChangeNotifier {
         status: DepositStatus.scheduled,
         pickupDate: pickupDay,
         pickupSlot: pickupSlots[0],
-        address: 'Jl. Customer Hijau No. 10, Jakarta Selatan',
+        address: 'Jl. Customer Hijau No. 10, Balige',
         vehicle: 'Pikap · B 9124 KX',
         timeline: [
           TimelineStep(
@@ -360,7 +339,7 @@ class CustomerStore extends ChangeNotifier {
             done: true,
           ),
           TimelineStep(
-            'Diterima Mitra 1',
+            'Diterima BSI Ias Toba',
             formatStamp(daysAgo(1, 15)),
             done: true,
           ),
@@ -371,35 +350,35 @@ class CustomerStore extends ChangeNotifier {
       ),
       _verified(
         'STR-${_yymmdd(daysAgo(3))}-01',
-        partners[0],
+        bankSampah,
         WasteType.plastik,
         8.4,
         daysAgo(3),
       ),
       _verified(
         'STR-${_yymmdd(daysAgo(10))}-01',
-        partners[1],
+        bankSampah,
         WasteType.kaca,
         5.2,
         daysAgo(10),
       ),
       _verified(
         'STR-${_yymmdd(daysAgo(17))}-01',
-        partners[2],
+        bankSampah,
         WasteType.kaleng,
         2.4,
         daysAgo(17),
       ),
       _verified(
         'STR-${_yymmdd(daysAgo(30))}-01',
-        partners[0],
+        bankSampah,
         WasteType.kertas,
         20,
         daysAgo(30),
       ),
       _verified(
         'STR-${_yymmdd(daysAgo(44))}-01',
-        partners[1],
+        bankSampah,
         WasteType.plastik,
         12.6,
         daysAgo(44),
@@ -420,12 +399,12 @@ class CustomerStore extends ChangeNotifier {
     notifications.addAll([
       AppNotification(
         'Jadwal jemput dikonfirmasi',
-        'Mitra 1 akan menjemput pada ${pickupSlots[0]} WIB.',
+        'BSI Ias Toba akan menjemput pada ${pickupSlots[0]} WIB.',
         daysAgo(1, 15),
       ),
       AppNotification(
         'Poin masuk',
-        '+4.200 poin dari setoran plastik 8,4 kg di Mitra 1.',
+        '+4.200 poin dari setoran plastik 8,4 kg di BSI Ias Toba.',
         daysAgo(3, 16),
         read: true,
       ),

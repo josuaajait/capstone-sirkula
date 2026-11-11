@@ -35,7 +35,7 @@ void main() {
       final partner = PartnerStore(customer);
       final before = partner.requests.length;
       final d = customer.submitDeposit(
-        partner: customer.partners.first,
+        partner: customer.partner,
         type: WasteType.plastik,
         estimatedKg: 5,
         method: DepositMethod.pickup,
@@ -111,10 +111,10 @@ void main() {
     await pumpBoth(tester);
     expect(find.text('Masuk ke Sirkula'), findsOneWidget);
 
-    await tester.tap(find.text('Isi Mitra 1'));
+    await tester.tap(find.text('Isi BSI Ias Toba'));
     await tester.tap(find.text('Masuk'));
     await tester.pumpAndSettle();
-    expect(find.text('Selamat datang, Mitra 1'), findsOneWidget);
+    expect(find.text('Selamat datang, BSI Ias Toba'), findsOneWidget);
   });
 
   testWidgets('akun perusahaan diarahkan ke panel admin', (tester) async {
@@ -207,7 +207,7 @@ void main() {
     test('setoran baru menunggu mitra dan masuk riwayat', () {
       final store = CustomerStore();
       final d = store.submitDeposit(
-        partner: store.partners[1],
+        partner: store.partner,
         type: WasteType.kertas,
         estimatedKg: 3,
         method: DepositMethod.dropOff,
@@ -238,12 +238,14 @@ void main() {
 
     await tester.tap(find.text('Setor'));
     await tester.pumpAndSettle();
-    final submit = find.text('Kirim Pengajuan ke Mitra 1');
+    final submit = find.text('Kirim Pengajuan ke BSI Ias Toba');
     await tester.scrollUntilVisible(
       submit,
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(submit);
+    await tester.pumpAndSettle();
     await tester.tap(submit);
     await tester.pumpAndSettle();
     expect(find.text('Tinjau Setoran'), findsOneWidget);

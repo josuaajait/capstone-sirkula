@@ -83,12 +83,12 @@ enum WasteType {
   int pointsFor(double kg) => (kg * pointsPerKg).floor();
 }
 
+/// Bank sampah. Rilis pertama hanya melayani satu: BSI Ias Toba.
 class Partner {
   const Partner({
     required this.id,
     required this.name,
     required this.initials,
-    required this.distanceKm,
     required this.address,
     required this.area,
     required this.hours,
@@ -98,7 +98,6 @@ class Partner {
   final String id;
   final String name;
   final String initials;
-  final double distanceKm;
   final String address;
   final String area;
   final String hours;

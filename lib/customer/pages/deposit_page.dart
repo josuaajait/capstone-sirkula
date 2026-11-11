@@ -9,8 +9,8 @@ import '../data/models.dart';
 import '../widgets/common.dart';
 import 'deposit_detail_page.dart';
 
-/// Setor Sampah: pilih mitra (FR-C2), isi sampah & berat (FR-C3), jadwal
-/// (FR-C4), lalu tinjau sebelum kirim (FR-C5).
+/// Setor Sampah ke BSI Ias Toba: isi sampah & berat (FR-C3), jadwal (FR-C4),
+/// lalu tinjau sebelum kirim (FR-C5).
 class DepositPage extends StatefulWidget {
   const DepositPage({super.key, this.preset});
   final DepositPreset? preset;
@@ -21,12 +21,11 @@ class DepositPage extends StatefulWidget {
 
 class _DepositPageState extends State<DepositPage> {
   final _formKey = GlobalKey<FormState>();
-  final _search = TextEditingController();
   final _weight = TextEditingController(text: '8');
   final _note = TextEditingController();
   late final TextEditingController _address;
 
-  late Partner _partner;
+  Partner get _partner => CustomerStore.bankSampah;
   WasteType _type = WasteType.plastik;
   DepositMethod _method = DepositMethod.dropOff;
   DateTime? _date;
@@ -40,17 +39,12 @@ class _DepositPageState extends State<DepositPage> {
     if (_initialized) return;
     _initialized = true;
     final store = CustomerScope.read(context);
-    _partner =
-        widget.preset?.partner ??
-        store.preferredPartner ??
-        store.partners.first;
     _method = widget.preset?.method ?? DepositMethod.dropOff;
     _address = TextEditingController(text: store.profile.address);
   }
 
   @override
   void dispose() {
-    _search.dispose();
     _weight.dispose();
     _note.dispose();
     _address.dispose();
@@ -115,20 +109,7 @@ class _DepositPageState extends State<DepositPage> {
 
   @override
   Widget build(BuildContext context) {
-    final store = CustomerScope.of(context);
-    final query = _search.text.trim().toLowerCase();
-    final partners =
-        store.partners
-            .where(
-              (p) =>
-                  query.isEmpty ||
-                  p.name.toLowerCase().contains(query) ||
-                  p.address.toLowerCase().contains(query) ||
-                  p.area.toLowerCase().contains(query),
-            )
-            .toList()
-          ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
-
+    CustomerScope.of(context); // rebuild saat data customer berubah
     return Form(
       key: _formKey,
       child: ListView(
@@ -136,61 +117,12 @@ class _DepositPageState extends State<DepositPage> {
         children: [
           const PageHeading(
             'Setor Sampah',
-            'Pilih bank sampah mitra berdasarkan lokasi, lalu isi detail setoran.',
+            'Isi detail setoran ke bank sampah BSI Ias Toba, lalu pilih antar sendiri atau dijemput.',
           ),
           if (_sent != null) ...[
             _SentBanner(deposit: _sent!),
             const SizedBox(height: 16),
           ],
-
-          // ----- Pilih mitra -----
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionTitle(
-                  'Pilih Mitra Tujuan',
-                  subtitle: 'Semua mitra menerima seluruh kategori sampah.',
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _search,
-                  onChanged: (_) => setState(() {}),
-                  style: const TextStyle(fontSize: 13),
-                  decoration: const InputDecoration(
-                    hintText: 'Cari mitra berdasarkan lokasi...',
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      size: 20,
-                      color: AppColors.subtle,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                if (partners.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'Mitra tidak ditemukan.',
-                      style: TextStyle(fontSize: 13, color: AppColors.muted),
-                    ),
-                  ),
-                for (final p in partners) ...[
-                  _PartnerOption(
-                    partner: p,
-                    selected: p.id == _partner.id,
-                    onTap: () => setState(() {
-                      _partner = p;
-                      _sent = null;
-                      if (!p.accepts.contains(_type)) _type = p.accepts.first;
-                    }),
-                  ),
-                  if (p != partners.last) const SizedBox(height: 10),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
 
           // ----- Detail setoran -----
           AppCard(
@@ -416,108 +348,6 @@ class _DepositPageState extends State<DepositPage> {
   }
 }
 
-class _PartnerOption extends StatelessWidget {
-  const _PartnerOption({
-    required this.partner,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Partner partner;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: Material(
-        color: selected ? AppColors.mint : AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: selected ? AppColors.primary : AppColors.line,
-                width: selected ? 1.5 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                InitialsTile(
-                  partner.initials,
-                  background: selected ? AppColors.primary : AppColors.canvas,
-                  foreground: selected ? AppColors.white : AppColors.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        partner.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Menerima ${WasteGroup.values.where((g) => partner.accepts.any((t) => t.group == g)).map((g) => g.label).join(', ')}',
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            size: 13,
-                            color: AppColors.muted,
-                          ),
-                          const SizedBox(width: 3),
-                          Expanded(
-                            child: Text(
-                              '${formatKm(partner.distanceKm)} · ${partner.address}',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.muted,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (selected)
-                  const CircleAvatar(
-                    radius: 12,
-                    backgroundColor: AppColors.primary,
-                    child: Icon(
-                      Icons.check_rounded,
-                      size: 15,
-                      color: AppColors.white,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SelectedPartnerCard extends StatelessWidget {
   const _SelectedPartnerCard({required this.partner, required this.type});
   final Partner partner;
@@ -535,7 +365,7 @@ class _SelectedPartnerCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'MITRA TERPILIH',
+            'BANK SAMPAH TUJUAN',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -553,7 +383,7 @@ class _SelectedPartnerCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${type.label} · ${formatKm(partner.distanceKm)}',
+            type.label,
             style: TextStyle(
               fontSize: 12,
               color: AppColors.white.withValues(alpha: 0.6),
@@ -705,10 +535,7 @@ class _ReviewSheet extends StatelessWidget {
               style: TextStyle(fontSize: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 14),
-            InfoRow(
-              'Mitra',
-              '${partner.name} · ${formatKm(partner.distanceKm)}',
-            ),
+            InfoRow('Bank sampah', partner.name),
             InfoRow('Jenis sampah', type.label),
             InfoRow('Perkiraan berat', formatKg(kg)),
             InfoRow('Metode', method.label),

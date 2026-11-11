@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../app/session.dart';
 import '../../app/theme.dart';
 import '../data/customer_store.dart';
-import '../data/models.dart';
 import '../widgets/common.dart';
 import 'help_page.dart';
 import 'settings_page.dart';
@@ -22,7 +21,6 @@ class _ProfilePageState extends State<ProfilePage> {
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late final TextEditingController _address;
-  Partner? _preferred;
   bool _initialized = false;
 
   @override
@@ -36,7 +34,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _phone = TextEditingController(text: p.phone);
     _email = TextEditingController(text: p.email);
     _address = TextEditingController(text: p.address);
-    _preferred = store.preferredPartner;
   }
 
   @override
@@ -55,7 +52,6 @@ class _ProfilePageState extends State<ProfilePage> {
       phone: _phone.text.trim(),
       email: _email.text.trim(),
       address: _address.text.trim(),
-      preferred: _preferred,
     );
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -104,7 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 10),
                   Pill(p.tier),
                   const Divider(height: 30, color: AppColors.line),
-                  InfoRow('Akses mitra', 'Semua mitra'),
+                  InfoRow('Bank sampah', 'BSI Ias Toba'),
                 ],
               ),
             ),
@@ -159,29 +155,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             .hasMatch(v?.trim() ?? '')
                         ? null
                         : 'Email tidak valid.',
-                  ),
-                  const SizedBox(height: 16),
-                  const FieldLabel('Preferensi mitra'),
-                  DropdownButtonFormField<Partner?>(
-                    initialValue: _preferred,
-                    isExpanded: true,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('Pilih setiap kali setor'),
-                      ),
-                      for (final partner in store.partners)
-                        DropdownMenuItem(
-                          value: partner,
-                          child: Text(partner.name),
-                        ),
-                    ],
-                    onChanged: (v) => setState(() => _preferred = v),
                   ),
                   const SizedBox(height: 16),
                   const FieldLabel('Alamat penjemputan'),

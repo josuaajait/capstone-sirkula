@@ -56,7 +56,7 @@ class PartnerStore extends ChangeNotifier {
   /// Target bulanan per bank sampah dari PRD (500 kg sampai 1 ton).
   static const monthlyTargetKg = 500.0;
 
-  Partner get partner => customerStore.partners.first;
+  Partner get partner => CustomerStore.bankSampah;
 
   final profile = (
     id: 'MTR-0001',
@@ -427,20 +427,25 @@ class PartnerStore extends ChangeNotifier {
       c(
         2,
         '+62 812 0000 0102',
-        'Jl. Kemang Raya No. 21, Jakarta Selatan',
+        'Jl. Sisingamangaraja No. 21, Balige, Kabupaten Toba',
         8200,
       ),
-      c(3, '+62 812 0000 0103', 'Jl. Bangka II No. 5, Jakarta Selatan', 15600),
+      c(
+        3,
+        '+62 812 0000 0103',
+        'Jl. Pagar Batu No. 5, Balige, Kabupaten Toba',
+        15600,
+      ),
       c(
         4,
         '+62 812 0000 0104',
-        'Jl. Tebet Barat No. 14, Jakarta Selatan',
+        'Jl. Raja Sonakmalela No. 14, Laguboti, Kabupaten Toba',
         3100,
       ),
       c(
         5,
         '+62 812 0000 0105',
-        'Jl. Pejaten Raya No. 9, Jakarta Selatan',
+        'Jl. Patuan Nagari No. 9, Porsea, Kabupaten Toba',
         42750,
       ),
     ]);
@@ -530,7 +535,8 @@ class PartnerStore extends ChangeNotifier {
         WasteType.plastik,
         6,
         DepositMethod.pickup,
-        at(0, 8, 12),
+        // Relatif ke jam sekarang, agar tidak pernah tercatat di masa depan.
+        now.subtract(const Duration(hours: 2, minutes: 30)),
         date: at(1, 0),
         slot: pickupSlots[0],
         note: 'Botol sudah dibilas dan dipipihkan.',
@@ -541,7 +547,7 @@ class PartnerStore extends ChangeNotifier {
         WasteType.kaleng,
         3.5,
         DepositMethod.dropOff,
-        at(0, 9, 40),
+        now.subtract(const Duration(hours: 1, minutes: 5)),
       ),
       today,
       // Riwayat bulan ini, kira-kira separuh target.

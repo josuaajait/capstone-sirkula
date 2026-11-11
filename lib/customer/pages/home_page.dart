@@ -18,9 +18,6 @@ class CustomerHomePage extends StatelessWidget {
     final nextPickup = store.activePickups.isEmpty
         ? null
         : store.activePickups.first;
-    final nearest = ([
-      ...store.partners,
-    ]..sort((a, b) => a.distanceKm.compareTo(b.distanceKm))).first;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
@@ -104,7 +101,7 @@ class CustomerHomePage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _NearestPartnerCard(partner: nearest, total: store.partners.length),
+        const _BankSampahCard(partner: CustomerStore.bankSampah),
       ],
     );
   }
@@ -159,7 +156,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Pilih bank sampah mitra terdekat. Semua mitra menerima Plastik, Kertas, Kaleng, dan Kaca.',
+                  'Setor sampah terpilah ke BSI Ias Toba. Diterima Plastik, Kertas, Kaleng, dan Kaca.',
                   style: TextStyle(
                     color: AppColors.white.withValues(alpha: 0.7),
                     fontSize: 13,
@@ -318,10 +315,9 @@ class _PickupStatusCard extends StatelessWidget {
   }
 }
 
-class _NearestPartnerCard extends StatelessWidget {
-  const _NearestPartnerCard({required this.partner, required this.total});
+class _BankSampahCard extends StatelessWidget {
+  const _BankSampahCard({required this.partner});
   final Partner partner;
-  final int total;
 
   @override
   Widget build(BuildContext context) {
@@ -329,10 +325,9 @@ class _NearestPartnerCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionTitle(
-            'Mitra Terdekat',
-            subtitle: '$total lokasi tersedia untuk dipilih',
-            action: Pill(formatKm(partner.distanceKm)),
+          const SectionTitle(
+            'Bank Sampah Sirkula',
+            subtitle: 'Tempat semua setoran Anda ditimbang',
           ),
           const SizedBox(height: 16),
           Container(
@@ -358,7 +353,7 @@ class _NearestPartnerCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       const Text(
-                        'Semua jenis sampah · Paling dekat',
+                        'Menerima plastik, kertas, kaleng, dan kaca',
                         style: TextStyle(fontSize: 12, color: AppColors.muted),
                       ),
                     ],
@@ -379,9 +374,9 @@ class _NearestPartnerCard extends StatelessWidget {
             onPressed: () => CustomerShell.goTo(
               context,
               CustomerTab.deposit,
-              preset: DepositPreset(partner: partner),
+              preset: const DepositPreset(method: DepositMethod.dropOff),
             ),
-            child: const Text('Lihat & Pilih Mitra'),
+            child: const Text('Setor ke Bank Sampah'),
           ),
         ],
       ),

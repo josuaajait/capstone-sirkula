@@ -217,7 +217,7 @@ void main() {
   test('grafik menjumlahkan setoran terverifikasi per bulan', () {
     final store = CustomerStore();
     final now = DateTime(2026, 11, 20);
-    final partner = store.partners.first;
+    final partner = store.partner;
     Deposit dep(DateTime date, double kg, DepositStatus status) => Deposit(
       id: 'X',
       customer: store.profile,
