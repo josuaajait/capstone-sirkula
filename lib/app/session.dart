@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Peran yang bisa masuk ke aplikasi HP. Staf perusahaan memakai panel admin.
+/// Peran yang bisa masuk ke aplikasi HP. Peran Admin perusahaan menyusul.
 enum UserRole { customer, partner }
 
 /// Akun contoh selama backend belum ada. Peran terikat ke akun (FR-A3),
@@ -41,7 +41,7 @@ const demoAccounts = [
   ),
 ];
 
-/// Email yang dikenali sebagai staf perusahaan; diarahkan ke panel admin.
+/// Email yang dikenali sebagai staf perusahaan (peran Admin, menyusul).
 bool isCompanyEmail(String input) =>
     input.trim().toLowerCase().endsWith('@sirkula.id');
 
@@ -90,7 +90,7 @@ String? validatePassword(String? v) {
 }
 
 /// Daftar akun customer baru (FR-A4). Mitra didaftarkan perusahaan lewat
-/// panel admin (FR-P2), jadi tidak bisa daftar sendiri di sini.
+/// admin perusahaan (FR-P2), jadi tidak bisa daftar sendiri di sini.
 /// Mengembalikan pesan galat jika gagal.
 String? registerCustomer({
   required String name,

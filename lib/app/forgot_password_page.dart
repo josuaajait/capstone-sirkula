@@ -41,7 +41,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (!_formKey.currentState!.validate()) return;
     if (isCompanyEmail(_id.text)) {
       setState(
-        () => _error = 'Akun staf perusahaan dipulihkan lewat panel admin.',
+        () => _error = 'Akun staf perusahaan dipulihkan oleh admin Sirkula.',
       );
       return;
     }

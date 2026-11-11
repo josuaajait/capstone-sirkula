@@ -109,21 +109,50 @@ void main() {
 
   testWidgets('masuk dengan akun mitra membuka beranda mitra', (tester) async {
     await pumpBoth(tester);
-    expect(find.text('Masuk ke Sirkula'), findsOneWidget);
+    expect(find.text('Selamat Datang!'), findsOneWidget);
+    expect(find.text('Masuk sebagai Customer'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Isi BSI Ias Toba'));
     await tester.tap(find.text('Isi BSI Ias Toba'));
-    await tester.tap(find.text('Masuk'));
+    await tester.pump();
+    // Tombol akun demo ikut memilih peran yang sesuai.
+    expect(find.text('Masuk sebagai Mitra'), findsOneWidget);
+    await tester.ensureVisible(find.text('MASUK'));
+    await tester.tap(find.text('MASUK'));
     await tester.pumpAndSettle();
     expect(find.text('Selamat datang, BSI Ias Toba'), findsOneWidget);
   });
 
-  testWidgets('akun perusahaan diarahkan ke panel admin', (tester) async {
+  testWidgets('peran yang dipilih harus sama dengan peran akun', (
+    tester,
+  ) async {
+    await pumpBoth(tester);
+    await tester.enterText(find.byType(TextFormField).first, '081200000001');
+    await tester.enterText(find.byType(TextFormField).last, 'sirkula123');
+    await tester.ensureVisible(find.text('MASUK'));
+    await tester.tap(find.text('MASUK'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('terdaftar sebagai Mitra'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Masuk sebagai Customer'));
+    await tester.tap(find.text('Masuk sebagai Customer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mitra').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('MASUK'));
+    await tester.tap(find.text('MASUK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Selamat datang, BSI Ias Toba'), findsOneWidget);
+  });
+
+  testWidgets('akun perusahaan menunggu peran Admin', (tester) async {
     await pumpBoth(tester);
     await tester.enterText(find.byType(TextFormField).first, 'staf@sirkula.id');
     await tester.enterText(find.byType(TextFormField).last, 'rahasia');
-    await tester.tap(find.text('Masuk'));
+    await tester.ensureVisible(find.text('MASUK'));
+    await tester.tap(find.text('MASUK'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('panel admin'), findsOneWidget);
+    expect(find.textContaining('Peran Admin'), findsOneWidget);
   });
 
   testWidgets('mitra mencatat timbangan customer yang datang', (tester) async {

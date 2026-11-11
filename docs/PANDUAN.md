@@ -37,7 +37,7 @@ Sirkula terdiri dari tiga bagian:
 | Bagian | Untuk siapa | Teknologi | Status |
 | --- | --- | --- | --- |
 | Aplikasi HP | Customer dan mitra bank sampah | Flutter | **Tampilan dan alur utama sudah jadi**, memakai data contoh |
-| API (server) | Dipakai aplikasi HP di belakang layar | Laravel | Belum dibuat |
+| API (server) | Dipakai aplikasi HP di belakang layar | Laravel | **Sudah jadi** di folder `backend/` (23 tes lulus), belum disambungkan ke aplikasi HP |
 | Peran Admin di aplikasi HP | Staf perusahaan | Flutter (memakai API Laravel) | Belum dibuat. Tidak ada panel admin web |
 
 **Hal penting yang perlu dipahami:**
@@ -126,7 +126,7 @@ Sebelumnya ada satu tes yang gagal. Penyebabnya, dua permintaan di data contoh m
 
 | Pekerjaan | Keterangan |
 | --- | --- |
-| API dan basis data (Laravel, MySQL) | Supaya data tersimpan permanen dan bisa dipakai bersama di banyak HP |
+| ~~API dan basis data (Laravel, MySQL)~~ | ✅ Selesai 11 November 2026, lihat [bagian 8](#8-menjalankan-backend-api-laravel). Laporan PDF, foto timbangan, dan notifikasi push belum |
 | Peran Admin di aplikasi | Kelola data bank sampah, poin per kg, katalog hadiah, proses penukaran, dan laporan PDF/Excel (FR-P1 sampai FR-P8) |
 | Menghubungkan aplikasi HP ke API | Kode data aplikasi sudah dipisahkan agar mudah diganti ke API nanti |
 | Kirim kode verifikasi sungguhan | Saat ini kodenya selalu `123456` |
@@ -416,26 +416,34 @@ flutter run -d chrome
 
 ---
 
-## 8. Menjalankan backend (nanti)
+## 8. Menjalankan backend (API Laravel)
 
-> Bagian ini **belum bisa dijalankan**, karena API Laravel belum dibuat. Laravel hanya dipakai untuk backend, tanpa halaman web. Langkah di bawah adalah gambaran umum dan akan diperbarui setelah bagian tersebut ada di repositori.
+API ada di folder `backend/`. Laravel hanya dipakai untuk backend, tanpa halaman web. Daftar lengkap endpoint ada di [backend/README.md](../backend/README.md).
+
+> Aplikasi Flutter **belum** memakai API ini. Sambungannya dikerjakan di tahap berikutnya.
 
 Backend membutuhkan program tambahan:
 
 | Program | Fungsi | Cara termudah memasang |
 | --- | --- | --- |
-| PHP dan Composer | Menjalankan Laravel | [Laravel Herd](https://herd.laravel.com/windows) memasang keduanya sekaligus |
-| MySQL | Basis data | Laragon atau XAMPP, atau MySQL bawaan Herd Pro |
+| PHP 8.3 dan Composer | Menjalankan Laravel | [Laragon](https://laragon.org/download/) sudah berisi keduanya |
+| MySQL 8 | Basis data | MySQL bawaan Laragon |
 
-Gambaran langkahnya nanti:
+> Pasang Laragon di `C:\laragon`. Jika dipasang di folder yang namanya berisi spasi, tombol **Start All** bisa gagal.
 
-1. Masuk ke folder backend, misalnya `cd backend`.
-2. Pasang pustaka: `composer install`.
-3. Salin file pengaturan: `copy .env.example .env`, lalu isi nama, pengguna, dan kata sandi basis data di file `.env`.
-4. Buat kunci aplikasi: `php artisan key:generate`.
-5. Buat tabel dan data contoh: `php artisan migrate --seed`.
-6. Jalankan server: `php artisan serve`. API bisa dicoba di `http://localhost:8000/api`.
-7. Arahkan aplikasi Flutter ke alamat server tersebut sesuai petunjuk di README nanti.
+Langkahnya:
+
+1. Buka Laragon, klik **Start All**.
+2. Buat database `sirkula` (cukup sekali), misalnya lewat SQLyog atau HeidiSQL bawaan Laragon.
+3. Buka terminal Laragon (tombol **Terminal**), lalu masuk ke folder backend: `cd C:\...\capstone\backend`.
+4. Pasang pustaka: `composer install`.
+5. Salin pengaturan: `copy .env.example .env`, lalu buat kunci: `php artisan key:generate`. Pengaturan bawaan sudah memakai MySQL Laragon (user `root` tanpa kata sandi).
+6. Buat tabel dan data contoh: `php artisan migrate:fresh --seed`.
+7. Jalankan server: `php artisan serve --host=0.0.0.0 --port=8000`. API bisa dicoba di `http://localhost:8000/api`.
+
+Akun contoh sama dengan aplikasi HP (kata sandi `sirkula123`), ditambah akun admin `admin@sirkula.id`.
+
+> **SQLyog versi lama** menampilkan "Error No. 1251" saat terhubung ke MySQL 8.4. Tambahkan `mysql_native_password=ON` di bagian `[mysqld]` file `my.ini` MySQL Laragon, restart MySQL, lalu jalankan `ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';`.
 
 ---
 

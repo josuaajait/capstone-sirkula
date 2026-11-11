@@ -130,7 +130,7 @@ void main() {
 
   testWidgets('daftar dari halaman masuk lalu langsung masuk', (tester) async {
     await pumpCustomer(tester, role: null);
-    await scrollToAndTap(tester, find.text('Daftar sebagai customer'));
+    await scrollToAndTap(tester, find.text('Daftar Disini'));
     final fields = find.byType(TextFormField);
     const values = [
       'Budi Santoso',
@@ -151,8 +151,7 @@ void main() {
 
   testWidgets('lupa kata sandi lalu masuk dengan sandi baru', (tester) async {
     await pumpCustomer(tester, role: null);
-    await tester.tap(find.text('Lupa kata sandi?'));
-    await tester.pumpAndSettle();
+    await scrollToAndTap(tester, find.text('Lupa Kata Sandi?'));
     await tester.enterText(find.byType(TextFormField), 'customer1@example.com');
     await tester.tap(find.text('Kirim Kode'));
     await tester.pumpAndSettle();
@@ -171,8 +170,7 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextFormField).at(1), 'baru12345');
-    await tester.tap(find.widgetWithText(FilledButton, 'Masuk'));
-    await tester.pumpAndSettle();
+    await scrollToAndTap(tester, find.widgetWithText(FilledButton, 'MASUK'));
     expect(find.text('Halo, Customer 1'), findsOneWidget);
   });
 
